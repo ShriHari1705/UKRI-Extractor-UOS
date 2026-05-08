@@ -1,0 +1,22 @@
+name: 'ukri_early_warning'
+version: '1.0.0'
+config-version: 2
+
+profile: 'ukri_early_warning'
+
+model-paths:  ["models"]
+seed-paths:   ["seeds"]
+test-paths:   ["tests"]
+analysis-paths: ["analyses"]
+
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  ukri_early_warning:
+    staging:
+      +schema: STAGING
+      +materialized: view      # views are cheap to refresh, good for staging
+    marts:
+      +schema: MARTS
+      +materialized: table     # materialised for BI tool query performance

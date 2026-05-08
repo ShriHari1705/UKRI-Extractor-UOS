@@ -1,0 +1,99 @@
+category,keyword
+ML_AI,machine learning
+ML_AI,deep learning
+ML_AI,neural network
+ML_AI,artificial intelligence
+ML_AI,large language model
+ML_AI,llm
+ML_AI,gpt
+ML_AI,transformer
+ML_AI,pytorch
+ML_AI,tensorflow
+ML_AI,keras
+ML_AI,reinforcement learning
+ML_AI,computer vision
+ML_AI,nlp
+ML_AI,natural language processing
+ML_AI,generative ai
+ML_AI,foundation model
+ML_AI,diffusion model
+ML_AI,bert
+ML_AI,gpu training
+ML_AI,image recognition
+ML_AI,object detection
+ML_AI,semantic segmentation
+ML_AI,automl
+ML_AI,federated learning
+ML_AI,stable diffusion
+ML_AI,text-to-image
+ML_AI,vision model
+HPC_Simulation,slurm
+HPC_Simulation,mpi
+HPC_Simulation,parallel computing
+HPC_Simulation,high performance computing
+HPC_Simulation,hpc
+HPC_Simulation,cluster computing
+HPC_Simulation,computational fluid dynamics
+HPC_Simulation,cfd
+HPC_Simulation,molecular dynamics
+HPC_Simulation,finite element
+HPC_Simulation,monte carlo
+HPC_Simulation,distributed computing
+HPC_Simulation,supercomputer
+HPC_Simulation,petascale
+HPC_Simulation,exascale
+HPC_Simulation,openmp
+HPC_Simulation,cuda
+HPC_Simulation,gpu computing
+HPC_Simulation,grid computing
+HPC_Simulation,lattice boltzmann
+HPC_Simulation,ab initio
+HPC_Simulation,density functional theory
+HPC_Simulation,dft
+HPC_Simulation,quantum chemistry
+HPC_Simulation,multiscale modelling
+HPC_Simulation,numerical simulation
+Data_Intensive,big data
+Data_Intensive,genomics
+Data_Intensive,sequencing
+Data_Intensive,rna-seq
+Data_Intensive,whole genome
+Data_Intensive,large-scale
+Data_Intensive,petabyte
+Data_Intensive,terabyte
+Data_Intensive,high-throughput
+Data_Intensive,bioinformatics
+Data_Intensive,proteomics
+Data_Intensive,metabolomics
+Data_Intensive,data pipeline
+Data_Intensive,real-time data
+Data_Intensive,streaming data
+Data_Intensive,remote sensing
+Data_Intensive,satellite imagery
+Data_Intensive,sensor data
+Data_Intensive,iot
+Data_Intensive,time series
+Data_Intensive,image analysis
+Data_Intensive,data lake
+Cloud_Infrastructure,aws
+Cloud_Infrastructure,azure
+Cloud_Infrastructure,google cloud
+Cloud_Infrastructure,gcp
+Cloud_Infrastructure,kubernetes
+Cloud_Infrastructure,docker
+Cloud_Infrastructure,containerisation
+Cloud_Infrastructure,containerization
+Cloud_Infrastructure,cloud computing
+Cloud_Infrastructure,cloud storage
+Cloud_Infrastructure,serverless
+Cloud_Infrastructure,microservices
+Cloud_Infrastructure,infrastructure as code
+Cloud_Infrastructure,terraform
+Cloud_Infrastructure,cloud-native
+Cloud_Infrastructure,hybrid cloud
+Cloud_Infrastructure,object storage
+Cloud_Infrastructure,s3
+Cloud_Infrastructure,ec2
+Cloud_Infrastructure,lambda
+Cloud_Infrastructure,managed service
+Cloud_Infrastructure,virtual machine

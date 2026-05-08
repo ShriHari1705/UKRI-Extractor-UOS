@@ -1,0 +1,30 @@
+version: 2
+
+sources:
+  - name: raw
+    database: UKRI_EWS
+    schema: RAW
+    tables:
+      - name: UKRI_PROJECTS
+        description: "Long-format table loaded by run_pipeline.py — one row per project × keyword pair"
+        columns:
+          - name: PROJECT_ID
+            tests: [not_null]
+          - name: KEYWORD
+            tests: [not_null]
+          - name: INGESTED_AT
+            tests: [not_null]
+
+models:
+  - name: stg_ukri_raw_projects
+    description: "Deduplicated, Innovate UK filtered staging view of RAW.UKRI_PROJECTS"
+    columns:
+      - name: PROJECT_ID
+        tests: [not_null]
+      - name: KEYWORD
+        tests: [not_null]
+      - name: CATEGORY
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['ML_AI', 'HPC_Simulation', 'Data_Intensive', 'Cloud_Infrastructure']
