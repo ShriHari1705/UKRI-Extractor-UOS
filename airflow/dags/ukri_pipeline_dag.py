@@ -18,6 +18,7 @@ from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.operators.bash import BashOperator
+from airflow.operators.python import PythonOperator
 from airflow.models import Variable
 
 # Path to the cloned repo on the Airflow worker / HPC node
@@ -45,6 +46,27 @@ with DAG(
     default_args=default_args,
     tags=["ukri", "research-it", "early-warning"],
 ) as dag:
+
+    # ── Stage 0: Pre-warm Snowflake warehouse ─────────────────────────────────
+    def _prewarm_snowflake():
+        import os
+        import snowflake.connector
+        conn = snowflake.connector.connect(
+            account=os.environ["SNOWFLAKE_ACCOUNT"],
+            user=os.environ["SNOWFLAKE_USER"],
+            password=os.environ["SNOWFLAKE_PASSWORD"],
+            warehouse=os.environ.get("SNOWFLAKE_WAREHOUSE", "COMPUTE_WH"),
+            database=os.environ.get("SNOWFLAKE_DATABASE", "UKRI_EWS"),
+            schema=os.environ.get("SNOWFLAKE_SCHEMA", "RAW"),
+        )
+        conn.cursor().execute("SELECT 1")
+        conn.close()
+
+    prewarm_snowflake = PythonOperator(
+        task_id="prewarm_snowflake",
+        python_callable=_prewarm_snowflake,
+        execution_timeout=timedelta(minutes=2),
+    )
 
     # ── Stage 1: Fetch, tag, load RAW to Snowflake ────────────────────────────
     fetch_and_tag = BashOperator(
@@ -84,4 +106,4 @@ with DAG(
         ),
     )
 
-    fetch_and_tag >> dbt_staging >> dbt_marts >> dbt_tests
+    prewarm_snowflake >> fetch_and_tag >> dbt_staging >> dbt_marts >> dbt_tests

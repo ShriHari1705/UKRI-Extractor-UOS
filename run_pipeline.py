@@ -38,8 +38,8 @@ logging.basicConfig(
     format="%(asctime)s  %(levelname)-8s  %(message)s",
     datefmt="%H:%M:%S",
     handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler("pipeline.log", mode="a"),
+        logging.StreamHandler(stream=open(sys.stdout.fileno(), mode="w", encoding="utf-8", closefd=False)),
+        logging.FileHandler("pipeline.log", mode="a", encoding="utf-8"),
     ],
 )
 log = logging.getLogger(__name__)
