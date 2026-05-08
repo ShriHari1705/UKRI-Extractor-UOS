@@ -1,0 +1,26 @@
+version: 2
+
+models:
+  - name: mart_keyword_tags
+    description: "Long-format mart — one row per project × keyword pair. Foundation for all downstream queries."
+    columns:
+      - name: PROJECT_ID
+        tests: [not_null]
+      - name: KEYWORD
+        tests: [not_null]
+      - name: CATEGORY
+        tests:
+          - accepted_values:
+              values: ['ML_AI', 'HPC_Simulation', 'Data_Intensive', 'Cloud_Infrastructure']
+
+  - name: mart_early_warning_signal
+    description: "One row per project with compute_score, priority tier, and starting_soon flag. Primary BI table."
+    columns:
+      - name: PROJECT_ID
+        tests: [not_null, unique]
+      - name: COMPUTE_SCORE
+        tests: [not_null]
+      - name: PRIORITY
+        tests:
+          - accepted_values:
+              values: ['Critical', 'High', 'Medium', 'Low', 'None']
