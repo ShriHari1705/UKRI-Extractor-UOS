@@ -8,6 +8,7 @@ Snowflake credentials are read from environment variables (see .env.example).
 After the load, dbt handles all further transformations in Snowflake.
 """
 import logging
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -20,6 +21,13 @@ from config import (
 )
 
 log = logging.getLogger(__name__)
+
+_VALID_IDENTIFIER = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
+
+
+def _validate_identifier(name: str) -> None:
+    if not _VALID_IDENTIFIER.match(name):
+        raise ValueError(f"Invalid Snowflake table name: {name!r}")
 
 
 def save_csv(df: pd.DataFrame) -> Path:
@@ -72,6 +80,8 @@ def load_to_snowflake(df: pd.DataFrame, overwrite: bool = False) -> None:
 
     try:
         cur = conn.cursor()
+
+        _validate_identifier(SNOWFLAKE_TABLE)
 
         # Create table if it doesn't exist (idempotent)
         cur.execute(f"""

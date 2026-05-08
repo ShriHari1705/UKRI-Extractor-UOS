@@ -35,7 +35,7 @@ def parse_projects(page: UKRIPageResponse) -> List[UKRIProjectRecord]:
     for raw in page.project:
         try:
             valid.append(UKRIProjectRecord(**raw))
-        except (ValidationError, Exception) as exc:
+        except (ValidationError, KeyError, TypeError, ValueError) as exc:
             skipped += 1
             log.warning(f"Skipping invalid project record: {exc}")
     if skipped:
