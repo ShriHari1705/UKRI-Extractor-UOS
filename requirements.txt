@@ -1,0 +1,25 @@
+# UKRI Early Warning System — Python dependencies
+# Install with: pip install -r requirements.txt
+
+# ── Core pipeline ─────────────────────────────────────────────────────────────
+requests>=2.31.0
+pandas>=2.0.0
+pydantic>=2.0.0
+python-dotenv>=1.0.0
+
+# ── AWS S3 (set USE_S3=true in .env to enable) ────────────────────────────────
+boto3>=1.34.0
+
+# ── Snowflake ─────────────────────────────────────────────────────────────────
+# Install the pandas extra for write_pandas() support
+snowflake-connector-python[pandas]>=3.0.0
+
+# ── Kafka (streaming mode) ────────────────────────────────────────────────────
+kafka-python>=2.0.2
+
+# ── Dev / HPC utilities ───────────────────────────────────────────────────────
+tqdm>=4.66.0        # progress bar for long pagination runs
+
+# ── Production stack — install separately on their respective servers ─────────
+# Airflow:  pip install apache-airflow apache-airflow-providers-snowflake
+# dbt:      pip install dbt-snowflake

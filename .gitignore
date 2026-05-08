@@ -1,0 +1,27 @@
+# Credentials — never commit
+.env
+
+# Cache and outputs — large files, don't commit
+cache/ukri_pages/
+outputs/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+*.egg-info/
+
+# dbt
+dbt/target/
+dbt/dbt_packages/
+dbt/profiles.yml
+
+# Logs
+*.log
+logs/
+
+# Editor
+.DS_Store
+.idea/
+.vscode/
