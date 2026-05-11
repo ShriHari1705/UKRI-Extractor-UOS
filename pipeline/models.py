@@ -10,9 +10,10 @@ Schema derived from live API exploration (see UKRI_exploration.ipynb).
 """
 from __future__ import annotations
 from datetime import date, datetime, timezone
+from html import unescape
 from typing import Any, List, Optional
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class UKRIProjectRecord(BaseModel):
@@ -45,6 +46,11 @@ class UKRIProjectRecord(BaseModel):
 
     href: Optional[str] = None
     created: Optional[int] = None
+
+    @field_validator("title", "abstractText", "techAbstractText", "potentialImpact", mode="before")
+    @classmethod
+    def decode_html_entities(cls, v):
+        return unescape(v) if isinstance(v, str) else v
 
     # ── Computed properties ────────────────────────────────────────────────────
 

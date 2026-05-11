@@ -13,13 +13,15 @@ Why long format (from notebook exploration):
 """
 import logging
 from datetime import datetime, timezone
-from typing import Generator, List
+from typing import Generator, List, Optional
 
 import pandas as pd
 from pydantic import ValidationError
 
 from config import TARGET_FUNDER, KEYWORD_TAXONOMY
 from pipeline.models import UKRIPageResponse, UKRIProjectRecord
+
+SNOWFLAKE_FLUSH_EVERY = 1000  # pages
 
 log = logging.getLogger(__name__)
 
@@ -111,7 +113,11 @@ def tag_project(project: UKRIProjectRecord) -> List[dict]:
 
 # ── Orchestrate ────────────────────────────────────────────────────────────────
 
-def build_long_dataframe(pages: Generator) -> pd.DataFrame:
+def build_long_dataframe(
+    pages: Generator,
+    snowflake: bool = False,
+    overwrite: bool = False,
+) -> pd.DataFrame:
     """
     Consume all pages from the fetcher, filter by funder, tag, and return
     a long-format DataFrame ready for CSV or Snowflake load.
@@ -123,9 +129,13 @@ def build_long_dataframe(pages: Generator) -> pd.DataFrame:
         pd.DataFrame — one row per (project × keyword) pair.
         Empty DataFrame if no matches found (check TARGET_FUNDER in config.py).
     """
+    if snowflake:
+        from pipeline.loader import load_to_snowflake
+
     all_rows: list[dict] = []
     total_seen = 0
     total_matched = 0
+    first_flush = True
 
     for page in pages:
         projects = parse_projects(page)
@@ -144,12 +154,36 @@ def build_long_dataframe(pages: Generator) -> pd.DataFrame:
             f"tag rows so far: {len(all_rows):>6,}"
         )
 
-    if not all_rows:
+        if snowflake and page.page % SNOWFLAKE_FLUSH_EVERY == 0 and all_rows:
+            flush_df = pd.DataFrame(all_rows)
+            flush_df["start_date"] = pd.to_datetime(flush_df["start_date"], errors="coerce")
+            flush_df["end_date"]   = pd.to_datetime(flush_df["end_date"],   errors="coerce")
+            load_to_snowflake(flush_df, overwrite=(overwrite and first_flush))
+            log.info(f"Incremental Snowflake flush — {len(flush_df):,} rows written at page {page.page}")
+            all_rows = []
+            first_flush = False
+
+    if not all_rows and first_flush:
         log.warning(
             f"No rows produced. "
             f"Check TARGET_FUNDER='{TARGET_FUNDER}' matches the API's leadFunder field exactly."
         )
         return pd.DataFrame()
+
+    # Final flush of any remaining rows not yet written
+    if snowflake and all_rows:
+        flush_df = pd.DataFrame(all_rows)
+        flush_df["start_date"] = pd.to_datetime(flush_df["start_date"], errors="coerce")
+        flush_df["end_date"]   = pd.to_datetime(flush_df["end_date"],   errors="coerce")
+        load_to_snowflake(flush_df, overwrite=(overwrite and first_flush))
+        log.info(f"Final Snowflake flush — {len(flush_df):,} rows written")
+
+    # all_rows may be empty if all data was already flushed incrementally — that's fine
+    if not all_rows:
+        log.info(f"Transform complete — all data written incrementally to Snowflake")
+        return pd.DataFrame(columns=["project_id", "title", "status", "lead_funder",
+                                     "grant_category", "start_date", "end_date",
+                                     "category", "keyword", "found_in", "gtr_url", "ingested_at"])
 
     df = pd.DataFrame(all_rows)
     df["start_date"] = pd.to_datetime(df["start_date"], errors="coerce")
