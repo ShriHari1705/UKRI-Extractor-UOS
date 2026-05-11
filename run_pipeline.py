@@ -88,28 +88,33 @@ def main():
     s3_client = None
     if USE_S3:
         import boto3
-        s3_client = boto3.client("s3")
+        import os
+        s3_client = boto3.client(
+            "s3",
+            region_name=os.getenv("AWS_DEFAULT_REGION", "eu-west-2"),
+        )
         log.info("Storage mode: AWS S3")
     else:
         log.info("Storage mode: local disk cache")
 
-    # ── Extract ────────────────────────────────────────────────────────────────
+    # ── Extract + Transform + incremental Snowflake load ──────────────────────
     pages = fetch_all_pages(max_pages=args.pages, s3_client=s3_client)
+    df = build_long_dataframe(
+        pages,
+        snowflake=args.snowflake,
+        overwrite=args.overwrite,
+    )
 
-    # ── Transform ──────────────────────────────────────────────────────────────
-    df = build_long_dataframe(pages)
-
-    if df.empty:
+    if df.empty and not args.snowflake:
         log.error("Pipeline produced no output. Exiting.")
         sys.exit(1)
 
-    # ── Load ───────────────────────────────────────────────────────────────────
-    save_csv(df)
-
-    if args.snowflake:
-        load_to_snowflake(df, overwrite=args.overwrite)
-
-    print_summary(df)
+    # ── Final CSV save (skip if no local rows — all flushed incrementally) ────
+    if not df.empty:
+        save_csv(df)
+        print_summary(df)
+    else:
+        log.info("All data written incrementally to Snowflake — no local DataFrame to summarise")
     log.info("═══ Pipeline complete ═══")
     return df
 
