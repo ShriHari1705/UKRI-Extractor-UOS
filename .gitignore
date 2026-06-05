@@ -2,7 +2,7 @@
 .env
 
 # Cache and outputs — large files, don't commit
-cache/ukri_pages/
+cache/
 outputs/
 
 # Python
@@ -16,6 +16,7 @@ __pycache__/
 dbt/target/
 dbt/dbt_packages/
 dbt/profiles.yml
+dbt/.user.yml
 
 # Logs
 *.log
