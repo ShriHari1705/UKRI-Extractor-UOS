@@ -27,4 +27,5 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['ML_AI', 'HPC_Simulation', 'Data_Intensive', 'Cloud_Infrastructure']
+              arguments:
+                values: ['ML_AI', 'HPC_Simulation', 'Data_Intensive', 'Cloud_Infrastructure']

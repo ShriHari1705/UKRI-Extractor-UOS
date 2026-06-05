@@ -11,7 +11,8 @@ models:
       - name: CATEGORY
         tests:
           - accepted_values:
-              values: ['ML_AI', 'HPC_Simulation', 'Data_Intensive', 'Cloud_Infrastructure']
+              arguments:
+                values: ['ML_AI', 'HPC_Simulation', 'Data_Intensive', 'Cloud_Infrastructure']
 
   - name: mart_early_warning_signal
     description: "One row per project with compute_score, priority tier, and starting_soon flag. Primary BI table."
@@ -23,4 +24,5 @@ models:
       - name: PRIORITY
         tests:
           - accepted_values:
-              values: ['Critical', 'High', 'Medium', 'Low', 'None']
+              arguments:
+                values: ['Critical', 'High', 'Medium', 'Low', 'None']
