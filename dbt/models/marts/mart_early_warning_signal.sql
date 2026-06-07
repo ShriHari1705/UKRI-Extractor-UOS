@@ -60,10 +60,12 @@ SELECT
         ELSE                        'None'
     END AS PRIORITY,
 
-    -- Forward-looking alert: project starts within the next 90 days
+    -- Active alert: project started within the last 180 days or starts within 90 days
+    -- Innovate UK projects rarely have future start dates; recently-started projects
+    -- are equally relevant for IT Services capacity planning.
     CASE
-        WHEN START_DATE BETWEEN CURRENT_DATE
-                            AND DATEADD('day', 90, CURRENT_DATE)
+        WHEN START_DATE BETWEEN DATEADD('day', -365, CURRENT_DATE)
+                            AND DATEADD('day',   90, CURRENT_DATE)
         THEN TRUE
         ELSE FALSE
     END AS STARTING_SOON,

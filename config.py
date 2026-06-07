@@ -77,7 +77,7 @@ KEYWORD_TAXONOMY: dict[str, list[str]] = {
         "bioinformatics", "proteomics", "metabolomics",
         "data pipeline", "real-time data", "streaming data",
         "remote sensing", "satellite imagery", "sensor data",
-        "iot", "time series", "image analysis", "data lake",
+        "internet of things", "time series", "image analysis", "data lake",
     ],
     "Cloud_Infrastructure": [
         "aws", "azure", "google cloud", "gcp", "kubernetes", "docker",
