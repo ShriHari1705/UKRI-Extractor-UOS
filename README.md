@@ -18,7 +18,7 @@ This pipeline fetches funded projects from the [UKRI Gateway to Research API](ht
 │                  Apache Kafka         STAGING + MARTS               │
 │                  (streaming alt)          │                         │
 │                                     BI Dashboard                    │
-│                  Apache Airflow      (Tableau / Metabase)           │
+│                  Apache Airflow      (Power BI)                     │
 │                  (orchestration)                                    │
 └─────────────────────────────────────────────────────────────────────┘
 
@@ -128,6 +128,15 @@ python run_pipeline.py --snowflake
 
 ```bash
 python run_pipeline.py --snowflake --overwrite
+```
+
+### 6. Recent projects (upcoming + newly awarded)
+
+```bash
+python run_pipeline.py --recent --snowflake
+# Fetches projects sorted by start date descending
+# Stops when dates go below 2025-01-01 (configurable via --since)
+python run_pipeline.py --recent --snowflake --since 2024-01-01
 ```
 
 ---
@@ -324,6 +333,23 @@ A: A known data quality gap in the UKRI API — some records have null timestamp
 
 **Q: How do I add a new keyword?**  
 A: Add it to `KEYWORD_TAXONOMY` in `config.py` and to `dbt/seeds/keyword_taxonomy.csv`, then run `dbt seed && dbt run`.
+
+---
+
+---
+
+## Generative AI Usage Statement
+
+In accordance with the University of Sheffield's policy on the use of generative AI tools, the following disclosure is made:
+
+Generative AI coding assistants were used during the development of this project to support the following activities:
+
+- **Code scaffolding**: generating boilerplate for Pydantic models, Snowflake connector setup, and dbt model structure
+- **Debugging**: identifying root causes of errors (e.g. Snowflake date casting, S3 region configuration, dbt profile parsing)
+- **Code review**: checking for security issues such as SQL injection vulnerabilities and suggesting fixes
+- **Documentation**: drafting inline comments and sections of this README
+
+All AI-generated code was reviewed, tested, and validated by the author before being committed. The system architecture, design decisions, keyword taxonomy, and analytical outputs are the author's own work. The author takes full responsibility for the correctness and integrity of the codebase.
 
 ---
 
