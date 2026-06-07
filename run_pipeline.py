@@ -10,10 +10,12 @@ CSV (and optionally loads to Snowflake).
 Usage
 -----
 Local / HPC interactive:
-    python run_pipeline.py                        # full run, CSV output
-    python run_pipeline.py --pages 5              # dev mode: first 5 pages only
-    python run_pipeline.py --snowflake            # also load to Snowflake
-    python run_pipeline.py --snowflake --overwrite  # truncate table first (backfill)
+    python run_pipeline.py                              # full run, CSV output
+    python run_pipeline.py --pages 5                    # dev mode: first 5 pages only
+    python run_pipeline.py --snowflake                  # also load to Snowflake
+    python run_pipeline.py --snowflake --overwrite      # truncate table first (backfill)
+    python run_pipeline.py --recent --snowflake         # recent projects (2025+) sorted by start date
+    python run_pipeline.py --recent --since 2024-01-01  # extend threshold back to 2024
 
 HPC batch (SLURM):
     sbatch slurm_job.sh
@@ -28,7 +30,7 @@ import logging
 import sys
 
 from config import USE_S3
-from pipeline.fetcher import fetch_all_pages
+from pipeline.fetcher import fetch_all_pages, fetch_recent_pages
 from pipeline.transformer import build_long_dataframe
 from pipeline.loader import save_csv, load_to_snowflake
 
@@ -80,6 +82,14 @@ def main():
         "--overwrite", action="store_true",
         help="Truncate Snowflake table before loading (use for full backfill)",
     )
+    parser.add_argument(
+        "--recent", action="store_true",
+        help="Fetch projects sorted by start date desc, stopping at --since date",
+    )
+    parser.add_argument(
+        "--since", type=str, default="2025-01-01",
+        help="Stop recent fetch when project dates go before this date (YYYY-MM-DD). Default: 2025-01-01",
+    )
     args = parser.parse_args()
 
     log.info("═══ UKRI Early Warning System Pipeline — Starting ═══")
@@ -98,7 +108,13 @@ def main():
         log.info("Storage mode: local disk cache")
 
     # ── Extract + Transform + incremental Snowflake load ──────────────────────
-    pages = fetch_all_pages(max_pages=args.pages, s3_client=s3_client)
+    if args.recent:
+        from datetime import datetime
+        since_dt = datetime.strptime(args.since, "%Y-%m-%d")
+        log.info(f"Recent mode: fetching projects with start date >= {args.since}")
+        pages = fetch_recent_pages(since=since_dt, max_pages=args.pages, s3_client=s3_client)
+    else:
+        pages = fetch_all_pages(max_pages=args.pages, s3_client=s3_client)
     df = build_long_dataframe(
         pages,
         snowflake=args.snowflake,
