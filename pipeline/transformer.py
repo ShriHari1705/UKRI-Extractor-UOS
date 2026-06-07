@@ -156,8 +156,8 @@ def build_long_dataframe(
 
         if snowflake and page.page % SNOWFLAKE_FLUSH_EVERY == 0 and all_rows:
             flush_df = pd.DataFrame(all_rows)
-            flush_df["start_date"] = pd.to_datetime(flush_df["start_date"], errors="coerce")
-            flush_df["end_date"]   = pd.to_datetime(flush_df["end_date"],   errors="coerce")
+            flush_df["start_date"] = flush_df["start_date"].apply(lambda x: str(x) if x is not None else None)
+            flush_df["end_date"]   = flush_df["end_date"].apply(lambda x: str(x) if x is not None else None)
             load_to_snowflake(flush_df, overwrite=(overwrite and first_flush))
             log.info(f"Incremental Snowflake flush — {len(flush_df):,} rows written at page {page.page}")
             all_rows = []
@@ -173,8 +173,8 @@ def build_long_dataframe(
     # Final flush of any remaining rows not yet written
     if snowflake and all_rows:
         flush_df = pd.DataFrame(all_rows)
-        flush_df["start_date"] = pd.to_datetime(flush_df["start_date"], errors="coerce")
-        flush_df["end_date"]   = pd.to_datetime(flush_df["end_date"],   errors="coerce")
+        flush_df["start_date"] = flush_df["start_date"].apply(lambda x: str(x) if x is not None else None)
+        flush_df["end_date"]   = flush_df["end_date"].apply(lambda x: str(x) if x is not None else None)
         load_to_snowflake(flush_df, overwrite=(overwrite and first_flush))
         log.info(f"Final Snowflake flush — {len(flush_df):,} rows written")
 
@@ -186,8 +186,8 @@ def build_long_dataframe(
                                      "category", "keyword", "found_in", "gtr_url", "ingested_at"])
 
     df = pd.DataFrame(all_rows)
-    df["start_date"] = pd.to_datetime(df["start_date"], errors="coerce")
-    df["end_date"]   = pd.to_datetime(df["end_date"],   errors="coerce")
+    df["start_date"] = df["start_date"].apply(lambda x: str(x) if x is not None else None)
+    df["end_date"]   = df["end_date"].apply(lambda x: str(x) if x is not None else None)
     df = df.sort_values(
         ["start_date", "project_id", "category", "keyword"],
         ascending=[False, True, True, True],

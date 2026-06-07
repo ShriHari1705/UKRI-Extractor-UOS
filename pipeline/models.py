@@ -47,19 +47,38 @@ class UKRIProjectRecord(BaseModel):
     href: Optional[str] = None
     created: Optional[int] = None
 
+    # Fund start/end live inside links.link[rel=FUND].start/end as Unix ms timestamps.
+    # Captured here after model validation via _extract_fund_dates.
+    start: Optional[int] = Field(default=None, exclude=True)
+    end: Optional[int] = Field(default=None, exclude=True)
+    links: Optional[Any] = Field(default=None, exclude=True)
+
     @field_validator("title", "abstractText", "techAbstractText", "potentialImpact", mode="before")
     @classmethod
     def decode_html_entities(cls, v):
         return unescape(v) if isinstance(v, str) else v
 
+    @model_validator(mode="after")
+    def _extract_fund_dates(self) -> "UKRIProjectRecord":
+        """Pull start/end timestamps from the FUND link if not already set."""
+        if self.start is not None and self.end is not None:
+            return self
+        links_data = self.links
+        if not links_data:
+            return self
+        for link in links_data.get("link", []):
+            if link.get("rel") == "FUND":
+                if self.start is None:
+                    self.start = link.get("start")
+                if self.end is None:
+                    self.end = link.get("end")
+                break
+        return self
+
     # ── Computed properties ────────────────────────────────────────────────────
 
     @property
     def combined_text(self) -> str:
-        """
-        Merge all three text fields into one searchable blob (lowercased).
-        This is the string that keyword matching runs against.
-        """
         parts = [
             self.abstractText or "",
             self.techAbstractText or "",
@@ -69,7 +88,6 @@ class UKRIProjectRecord(BaseModel):
 
     @property
     def start_date(self) -> Optional[date]:
-        """Convert Unix ms timestamp → Python date. Returns None if missing."""
         if self.start is None:
             return None
         return datetime.fromtimestamp(self.start / 1000, tz=timezone.utc).date()
