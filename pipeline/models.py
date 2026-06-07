@@ -39,16 +39,11 @@ class UKRIProjectRecord(BaseModel):
     techAbstractText: Optional[str] = None
     potentialImpact: Optional[str] = None
 
-    # Dates are Unix millisecond timestamps in the raw API (e.g. 1669852800000).
-    # They live on the project record directly (not inside a nested 'fund' dict).
-    start: Optional[int] = None
-    end: Optional[int] = None
-
     href: Optional[str] = None
     created: Optional[int] = None
 
-    # Fund start/end live inside links.link[rel=FUND].start/end as Unix ms timestamps.
-    # Captured here after model validation via _extract_fund_dates.
+    # Fund dates live in links.link[rel=FUND] as Unix ms timestamps, not top-level fields.
+    # Populated by _extract_fund_dates after validation.
     start: Optional[int] = Field(default=None, exclude=True)
     end: Optional[int] = Field(default=None, exclude=True)
     links: Optional[Any] = Field(default=None, exclude=True)
