@@ -1,5 +1,6 @@
 # Credentials — never commit
 .env
+.streamlit/secrets.toml
 
 # Cache and outputs — large files, don't commit
 cache/

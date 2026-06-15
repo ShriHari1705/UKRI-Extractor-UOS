@@ -20,6 +20,10 @@ kafka-python>=2.0.2
 # ── Dev / HPC utilities ───────────────────────────────────────────────────────
 tqdm>=4.66.0        # progress bar for long pagination runs
 
+# ── Dashboard ─────────────────────────────────────────────────────────────────
+streamlit>=1.35.0
+plotly>=5.22.0
+
 # ── Production stack — install separately on their respective servers ─────────
 # Airflow:  pip install apache-airflow apache-airflow-providers-snowflake
 # dbt:      pip install dbt-snowflake
