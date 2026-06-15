@@ -156,7 +156,8 @@ if filtered.empty:
 total     = len(filtered)
 alerts    = int(filtered["starting_soon"].sum())
 high_crit = int(filtered["priority"].isin(["Critical", "High"]).sum())
-new_30    = int((filtered["ingested_at"] >= pd.Timestamp(date.today() - timedelta(days=30))).sum())
+cutoff_30 = pd.Timestamp(date.today() - timedelta(days=30), tz="UTC")
+new_30    = int((filtered["ingested_at"].dt.tz_convert("UTC") >= cutoff_30).sum())
 
 k1, k2, k3, k4 = st.columns(4)
 k1.metric("Projects matched", f"{total:,}")
