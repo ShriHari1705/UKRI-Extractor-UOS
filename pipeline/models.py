@@ -95,7 +95,7 @@ class UKRIProjectRecord(BaseModel):
 
     @property
     def gtr_url(self) -> str:
-        return f"https://gtr.ukri.org/projects?ref={self.id}"
+        return f"https://gtr.ukri.org/project/{self.id}"
 
 
 class UKRIPageResponse(BaseModel):
