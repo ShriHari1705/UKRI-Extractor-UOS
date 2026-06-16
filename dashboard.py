@@ -85,6 +85,10 @@ def load_projects() -> pd.DataFrame:
     df["ingested_at"]   = pd.to_datetime(df["ingested_at"],   errors="coerce")
     df["starting_soon"] = df["starting_soon"].astype(bool)
     df["start_month"]   = df["start_date"].dt.to_period("M").astype(str)
+    # Normalise legacy URLs (?ref=UUID → /project/UUID)
+    df["gtr_url"] = df["project_id"].apply(
+        lambda pid: f"https://gtr.ukri.org/project/{pid}"
+    )
     return df
 
 
@@ -147,6 +151,44 @@ filtered = proj_df[mask].copy()
 # ── Header ────────────────────────────────────────────────────────────────────
 st.title("📡 UKRI Early Warning System")
 st.caption("Innovate UK projects flagged for compute / cloud / AI / data-intensive activity · Source: Snowflake")
+
+with st.expander("How scoring works", expanded=False):
+    st.markdown("""
+**Compute Score (0 – 4)**
+
+Each project's abstract, technical abstract, and potential impact text is scanned
+against a keyword taxonomy covering four technology categories:
+
+| Category | Examples |
+|---|---|
+| **ML_AI** | machine learning, neural network, LLM, computer vision, PyTorch |
+| **HPC_Simulation** | HPC, CUDA, MPI, molecular dynamics, finite element |
+| **Data_Intensive** | genomics, bioinformatics, real-time data, data pipeline, IoT |
+| **Cloud_Infrastructure** | AWS, Kubernetes, Docker, Terraform, serverless |
+
+The **Compute Score** is the number of distinct categories triggered (0 – 4).
+A project mentioning 10 ML keywords still scores 1 — breadth across categories matters, not keyword frequency.
+
+---
+
+**Priority Tier**
+
+| Score | Priority | Meaning |
+|---|---|---|
+| 4 | 🔴 Critical | All four categories flagged — significant cross-domain compute demand |
+| 3 | 🟠 High | Three categories — likely needs dedicated infrastructure planning |
+| 2 | 🔵 Medium | Two categories — worth monitoring |
+| 1 | 🟢 Low | Single category signal |
+
+---
+
+**Active Alert flag**
+
+A project is marked as an active alert if its start date falls within the window:
+**365 days in the past → 90 days in the future** relative to today.
+This catches recently-started projects (already drawing on resources) and
+upcoming ones (capacity planning needed soon).
+    """)
 
 if filtered.empty:
     st.warning("No projects match the current filters.")
