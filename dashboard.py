@@ -44,7 +44,15 @@ def _sf_param(key: str, env_key: str) -> str:
         return os.environ.get(env_key, "")
 
 
-@st.cache_resource(show_spinner="Connecting to Snowflake…")
+def _is_connection_alive(conn) -> bool:
+    try:
+        conn.cursor().execute("SELECT 1")
+        return True
+    except Exception:
+        return False
+
+
+@st.cache_resource(show_spinner="Connecting to Snowflake…", validate=_is_connection_alive)
 def get_connection():
     try:
         import snowflake.connector
@@ -62,11 +70,21 @@ def get_connection():
     )
 
 
+def _query(sql: str) -> pd.DataFrame:
+    """Run a query, refreshing the connection once if the token has expired."""
+    try:
+        return pd.read_sql(sql, get_connection())
+    except Exception as e:
+        if "390114" in str(e) or "Authentication token has expired" in str(e):
+            get_connection.clear()
+            return pd.read_sql(sql, get_connection())
+        raise
+
+
 @st.cache_data(ttl=600, show_spinner="Loading keyword tags…")
 def load_long() -> pd.DataFrame:
     """Long format — one row per (project × keyword)."""
-    conn = get_connection()
-    df = pd.read_sql(f"SELECT * FROM {LONG}", conn)
+    df = _query(f"SELECT * FROM {LONG}")
     df.columns = df.columns.str.lower()
     df["start_date"]  = pd.to_datetime(df["start_date"],  errors="coerce")
     df["end_date"]    = pd.to_datetime(df["end_date"],     errors="coerce")
@@ -77,8 +95,7 @@ def load_long() -> pd.DataFrame:
 @st.cache_data(ttl=600, show_spinner="Loading project signals…")
 def load_projects() -> pd.DataFrame:
     """One row per project from mart_early_warning_signal."""
-    conn = get_connection()
-    df = pd.read_sql(f"SELECT * FROM {PROJ}", conn)
+    df = _query(f"SELECT * FROM {PROJ}")
     df.columns = df.columns.str.lower()
     df["start_date"]    = pd.to_datetime(df["start_date"],    errors="coerce")
     df["end_date"]      = pd.to_datetime(df["end_date"],      errors="coerce")
