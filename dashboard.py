@@ -335,25 +335,118 @@ display = filtered[[
 
 
 def _project_table_html(df: pd.DataFrame) -> str:
-    header = """
+    css = """
 <style>
-.ews-table{width:100%;border-collapse:collapse;font-size:13px;font-family:sans-serif}
-.ews-table th{text-align:left;padding:7px 10px;border-bottom:2px solid #ddd;
-  background:#f8f8f8;white-space:nowrap;position:sticky;top:0;z-index:1}
-.ews-table td{padding:5px 10px;border-bottom:1px solid #eee;vertical-align:top}
-.ews-table tr:hover td{background:#f5f5f5}
-.ews-table a{text-decoration:none;color:#1a73e8}
-.ews-table a:hover{text-decoration:underline}
-.pri{padding:2px 8px;border-radius:4px;font-weight:bold;font-size:12px}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
+
+:root {
+  --bg:       #ffffff;
+  --bg-alt:   #f7f8fa;
+  --bg-hover: #eef1f7;
+  --border:   #e2e5eb;
+  --text:     #1a1d23;
+  --muted:    #5f6775;
+  --link:     #1558d6;
+  --link-hov: #0d3fa0;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:       #0e1117;
+    --bg-alt:   #161b22;
+    --bg-hover: #1c2333;
+    --border:   #2d3340;
+    --text:     #cdd5e0;
+    --muted:    #7c8794;
+    --link:     #58a6ff;
+    --link-hov: #79b8ff;
+  }
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.wrap { overflow-x: auto; max-height: 560px; overflow-y: auto }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+col.c-pri   { width: 88px }
+col.c-score { width: 56px }
+col.c-title { width: 26% }
+col.c-status{ width: 78px }
+col.c-grant { width: 13% }
+col.c-date  { width: 82px }
+col.c-cats  { width: 18% }
+col.c-kw    { width: auto }
+
+thead th {
+  padding: 8px 10px;
+  text-align: left;
+  background: var(--bg-alt);
+  border-bottom: 2px solid var(--border);
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+tbody tr { border-bottom: 1px solid var(--border) }
+tbody tr:last-child { border-bottom: none }
+tbody tr:hover td { background: var(--bg-hover) }
+
+td {
+  padding: 9px 10px;
+  vertical-align: top;
+  word-break: break-word;
+}
+
+a { color: var(--link); text-decoration: none; font-weight: 500 }
+a:hover { color: var(--link-hov); text-decoration: underline }
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  white-space: nowrap;
+}
+
+.muted { color: var(--muted) }
+.mono  { font-variant-numeric: tabular-nums; white-space: nowrap }
+.sm    { font-size: 12px }
+.xs    { font-size: 11px }
 </style>
-<div style="max-height:520px;overflow-y:auto">
-<table class="ews-table">
-<thead><tr>
-  <th>Priority</th><th>Score</th><th>Project title</th>
-  <th>Status</th><th>Grant category</th><th>Start</th><th>End</th>
-  <th>Categories</th><th>Keywords</th>
-</tr></thead><tbody>
 """
+    colgroup = (
+        '<colgroup>'
+        '<col class="c-pri"><col class="c-score"><col class="c-title">'
+        '<col class="c-status"><col class="c-grant">'
+        '<col class="c-date"><col class="c-date">'
+        '<col class="c-cats"><col class="c-kw">'
+        '</colgroup>'
+    )
+    thead = (
+        '<thead><tr>'
+        '<th>Priority</th><th>Score</th><th>Project title</th>'
+        '<th>Status</th><th>Grant category</th><th>Start</th><th>End</th>'
+        '<th>Categories</th><th>Keywords</th>'
+        '</tr></thead>'
+    )
     rows = []
     for _, row in df.iterrows():
         pc    = PRIORITY_COLOURS.get(row["priority"], "#888")
@@ -361,20 +454,27 @@ def _project_table_html(df: pd.DataFrame) -> str:
         end   = row["end_date"].strftime("%Y-%m-%d")   if pd.notna(row["end_date"])   else "—"
         title = html.escape(str(row["title"]))
         url   = html.escape(str(row["gtr_url"]))
+        pri   = html.escape(str(row["priority"]))
         rows.append(
             f'<tr>'
-            f'<td><span class="pri" style="background:{pc}22;color:{pc}">{html.escape(row["priority"])}</span></td>'
-            f'<td style="text-align:center">{int(row["compute_score"])} / 4</td>'
+            f'<td><span class="badge" style="background:{pc}1a;color:{pc};border:1px solid {pc}55">{pri}</span></td>'
+            f'<td class="muted mono sm" style="text-align:center">{int(row["compute_score"])} / 4</td>'
             f'<td><a href="{url}" target="_blank">{title}</a></td>'
-            f'<td>{html.escape(str(row["status"]))}</td>'
-            f'<td>{html.escape(str(row["grant_category"]))}</td>'
-            f'<td style="white-space:nowrap">{start}</td>'
-            f'<td style="white-space:nowrap">{end}</td>'
-            f'<td style="font-size:12px">{html.escape(str(row["categories_flagged"]))}</td>'
-            f'<td style="font-size:11px">{html.escape(str(row["keywords_matched"]))}</td>'
+            f'<td class="muted sm">{html.escape(str(row["status"]))}</td>'
+            f'<td class="muted sm">{html.escape(str(row["grant_category"]))}</td>'
+            f'<td class="muted mono sm">{start}</td>'
+            f'<td class="muted mono sm">{end}</td>'
+            f'<td class="muted sm">{html.escape(str(row["categories_flagged"]))}</td>'
+            f'<td class="muted xs">{html.escape(str(row["keywords_matched"]))}</td>'
             f'</tr>'
         )
-    return header + "\n".join(rows) + "</tbody></table></div>"
+    return (
+        css
+        + '<div class="wrap">'
+        + f'<table>{colgroup}{thead}<tbody>'
+        + "\n".join(rows)
+        + "</tbody></table></div>"
+    )
 
 
 st.html(_project_table_html(display))
