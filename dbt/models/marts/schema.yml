@@ -26,3 +26,11 @@ models:
           - accepted_values:
               arguments:
                 values: ['Critical', 'High', 'Medium', 'Low', 'None']
+
+  - name: mart_rpi_funding_landscape
+    description: "One row per project across all UKRI funders. Powers the RPI Growth Manager dashboard tab."
+    columns:
+      - name: PROJECT_ID
+        tests: [not_null, unique]
+      - name: LEAD_FUNDER
+        tests: [not_null]

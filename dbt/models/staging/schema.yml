@@ -14,6 +14,15 @@ sources:
             tests: [not_null]
           - name: INGESTED_AT
             tests: [not_null]
+      - name: UKRI_ALL_PROJECTS
+        description: "Wide-format table loaded by run_rpi_pipeline.py — one row per project, all funders"
+        columns:
+          - name: PROJECT_ID
+            tests: [not_null]
+          - name: LEAD_FUNDER
+            tests: [not_null]
+          - name: INGESTED_AT
+            tests: [not_null]
 
 models:
   - name: stg_ukri_raw_projects
@@ -29,3 +38,11 @@ models:
           - accepted_values:
               arguments:
                 values: ['ML_AI', 'HPC_Simulation', 'Data_Intensive', 'Cloud_Infrastructure']
+
+  - name: stg_ukri_all_projects
+    description: "Deduplicated, all-funder staging view of RAW.UKRI_ALL_PROJECTS"
+    columns:
+      - name: PROJECT_ID
+        tests: [not_null, unique]
+      - name: LEAD_FUNDER
+        tests: [not_null]

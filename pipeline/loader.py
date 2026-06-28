@@ -17,7 +17,8 @@ import pandas as pd
 from config import (
     OUTPUT_DIR,
     SNOWFLAKE_ACCOUNT, SNOWFLAKE_USER, SNOWFLAKE_PASSWORD,
-    SNOWFLAKE_WAREHOUSE, SNOWFLAKE_DATABASE, SNOWFLAKE_SCHEMA, SNOWFLAKE_TABLE,
+    SNOWFLAKE_WAREHOUSE, SNOWFLAKE_DATABASE, SNOWFLAKE_SCHEMA,
+    SNOWFLAKE_TABLE, RPI_SNOWFLAKE_TABLE,
 )
 
 log = logging.getLogger(__name__)
@@ -122,5 +123,62 @@ def load_to_snowflake(df: pd.DataFrame, overwrite: bool = False) -> None:
         else:
             log.error("Snowflake write_pandas reported failure — check connector logs")
 
+    finally:
+        conn.close()
+
+
+def load_all_projects_to_snowflake(df: pd.DataFrame, overwrite: bool = False) -> None:
+    """
+    Load the wide-format all-funders DataFrame into UKRI_ALL_PROJECTS (RAW layer).
+    Schema: one row per project — no keyword expansion.
+    """
+    try:
+        import snowflake.connector
+        from snowflake.connector.pandas_tools import write_pandas
+    except ImportError:
+        raise ImportError("pip install 'snowflake-connector-python[pandas]'")
+
+    _validate_identifier(RPI_SNOWFLAKE_TABLE)
+    log.info(
+        f"Connecting to Snowflake: "
+        f"{SNOWFLAKE_ACCOUNT} / {SNOWFLAKE_DATABASE}.{SNOWFLAKE_SCHEMA}.{RPI_SNOWFLAKE_TABLE}"
+    )
+    conn = snowflake.connector.connect(
+        account=SNOWFLAKE_ACCOUNT,
+        user=SNOWFLAKE_USER,
+        password=SNOWFLAKE_PASSWORD,
+        warehouse=SNOWFLAKE_WAREHOUSE,
+        database=SNOWFLAKE_DATABASE,
+        schema=SNOWFLAKE_SCHEMA,
+    )
+    try:
+        cur = conn.cursor()
+        cur.execute(f"""
+            CREATE TABLE IF NOT EXISTS {RPI_SNOWFLAKE_TABLE} (
+                PROJECT_ID      VARCHAR,
+                TITLE           VARCHAR,
+                STATUS          VARCHAR,
+                LEAD_FUNDER     VARCHAR,
+                GRANT_CATEGORY  VARCHAR,
+                DEPARTMENT      VARCHAR,
+                START_DATE      DATE,
+                END_DATE        DATE,
+                GTR_URL         VARCHAR,
+                INGESTED_AT     TIMESTAMP_TZ
+            )
+        """)
+        if overwrite:
+            cur.execute(f"TRUNCATE TABLE {RPI_SNOWFLAKE_TABLE}")
+            log.info(f"Table {RPI_SNOWFLAKE_TABLE} truncated (overwrite=True)")
+
+        df_upload = df.copy()
+        df_upload.columns = df_upload.columns.str.upper()
+        success, num_chunks, num_rows, _ = write_pandas(
+            conn, df_upload, RPI_SNOWFLAKE_TABLE, auto_create_table=False, overwrite=False,
+        )
+        if success:
+            log.info(f"RPI Snowflake load complete — {num_rows:,} rows in {num_chunks} chunk(s)")
+        else:
+            log.error("write_pandas reported failure — check connector logs")
     finally:
         conn.close()

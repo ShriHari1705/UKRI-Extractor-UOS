@@ -37,6 +37,7 @@ SNOWFLAKE_WAREHOUSE = os.getenv("SNOWFLAKE_WAREHOUSE", "COMPUTE_WH")
 SNOWFLAKE_DATABASE  = os.getenv("SNOWFLAKE_DATABASE", "UKRI_EWS")
 SNOWFLAKE_SCHEMA    = os.getenv("SNOWFLAKE_SCHEMA", "RAW")
 SNOWFLAKE_TABLE     = os.getenv("SNOWFLAKE_TABLE", "UKRI_PROJECTS")
+RPI_SNOWFLAKE_TABLE = os.getenv("RPI_SNOWFLAKE_TABLE", "UKRI_ALL_PROJECTS")
 
 # ── Kafka ─────────────────────────────────────────────────────────────────────
 KAFKA_BOOTSTRAP    = os.getenv("KAFKA_BOOTSTRAP", "localhost:9092")
