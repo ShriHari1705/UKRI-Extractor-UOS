@@ -7,6 +7,7 @@ Run locally:  streamlit run dashboard.py
 Deploy:       push to GitHub → Streamlit Community Cloud → share as a link
 Credentials:  .streamlit/secrets.toml  (gitignored)
 """
+import html
 import os
 from datetime import date, datetime, timedelta
 
@@ -333,29 +334,50 @@ display = filtered[[
 ]].sort_values(["compute_score", "start_date"], ascending=[False, False])
 
 
-def colour_priority(val):
-    c = PRIORITY_COLOURS.get(val, "#888888")
-    return f"background-color: {c}22; color: {c}; font-weight: bold"
+def _project_table_html(df: pd.DataFrame) -> str:
+    header = """
+<style>
+.ews-table{width:100%;border-collapse:collapse;font-size:13px;font-family:sans-serif}
+.ews-table th{text-align:left;padding:7px 10px;border-bottom:2px solid #ddd;
+  background:#f8f8f8;white-space:nowrap;position:sticky;top:0;z-index:1}
+.ews-table td{padding:5px 10px;border-bottom:1px solid #eee;vertical-align:top}
+.ews-table tr:hover td{background:#f5f5f5}
+.ews-table a{text-decoration:none;color:#1a73e8}
+.ews-table a:hover{text-decoration:underline}
+.pri{padding:2px 8px;border-radius:4px;font-weight:bold;font-size:12px}
+</style>
+<div style="max-height:520px;overflow-y:auto">
+<table class="ews-table">
+<thead><tr>
+  <th>Priority</th><th>Score</th><th>Project title</th>
+  <th>Status</th><th>Grant category</th><th>Start</th><th>End</th>
+  <th>Categories</th><th>Keywords</th>
+</tr></thead><tbody>
+"""
+    rows = []
+    for _, row in df.iterrows():
+        pc    = PRIORITY_COLOURS.get(row["priority"], "#888")
+        start = row["start_date"].strftime("%Y-%m-%d") if pd.notna(row["start_date"]) else "—"
+        end   = row["end_date"].strftime("%Y-%m-%d")   if pd.notna(row["end_date"])   else "—"
+        title = html.escape(str(row["title"]))
+        url   = html.escape(str(row["gtr_url"]))
+        rows.append(
+            f'<tr>'
+            f'<td><span class="pri" style="background:{pc}22;color:{pc}">{html.escape(row["priority"])}</span></td>'
+            f'<td style="text-align:center">{int(row["compute_score"])} / 4</td>'
+            f'<td><a href="{url}" target="_blank">{title}</a></td>'
+            f'<td>{html.escape(str(row["status"]))}</td>'
+            f'<td>{html.escape(str(row["grant_category"]))}</td>'
+            f'<td style="white-space:nowrap">{start}</td>'
+            f'<td style="white-space:nowrap">{end}</td>'
+            f'<td style="font-size:12px">{html.escape(str(row["categories_flagged"]))}</td>'
+            f'<td style="font-size:11px">{html.escape(str(row["keywords_matched"]))}</td>'
+            f'</tr>'
+        )
+    return header + "\n".join(rows) + "</tbody></table></div>"
 
 
-st.dataframe(
-    display.style.map(colour_priority, subset=["priority"]),
-    use_container_width=True,
-    hide_index=True,
-    column_config={
-        "gtr_url":            st.column_config.LinkColumn("GTR link", display_text="Open"),
-        "start_date":         st.column_config.DateColumn("Start date"),
-        "end_date":           st.column_config.DateColumn("End date"),
-        "compute_score":      st.column_config.NumberColumn("Score", format="%d / 4"),
-        "priority":           "Priority",
-        "title":              "Project title",
-        "status":             "Status",
-        "grant_category":     "Grant category",
-        "categories_flagged": "Categories",
-        "keywords_matched":   "Keywords",
-    },
-    height=500,
-)
+st.html(_project_table_html(display))
 
 st.caption(
     f"Showing {len(filtered):,} of {len(proj_df):,} projects · "
