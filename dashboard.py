@@ -128,7 +128,7 @@ def load_rpi() -> pd.DataFrame:
 # ── Load ──────────────────────────────────────────────────────────────────────
 long_df = load_long()
 proj_df = load_projects()
-rpi_df  = load_rpi()
+# rpi_df is loaded lazily inside tab_rpi to avoid slowing the initial page load
 
 if proj_df.empty:
     st.warning("No data returned from Snowflake. Has the pipeline run yet?")
@@ -440,6 +440,8 @@ a:hover{color:var(--link-hov);text-decoration:underline}
 # ════════════════════════════════════════════════════════════════════════════════
 with tab_rpi:
     st.caption("UKRI funding landscape across all research councils · For Research & Policy Intelligence teams")
+
+    rpi_df = load_rpi()
 
     if rpi_df.empty:
         st.info(
