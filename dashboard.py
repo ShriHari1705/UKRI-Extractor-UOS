@@ -366,7 +366,7 @@ a:hover{color:var(--link-hov);text-decoration:underline}
 .sm{font-size:12px}.xs{font-size:11px}
 
 /* ── Desktop table ── */
-.wrap{container-type:inline-size;overflow-y:auto;max-height:560px}
+.wrap{overflow-y:auto;max-height:560px}
 table{width:100%;border-collapse:collapse;table-layout:fixed}
 col.c-pri{width:88px}col.c-score{width:56px}col.c-title{width:26%}
 col.c-status{width:78px}col.c-grant{width:13%}col.c-date{width:82px}
@@ -379,21 +379,19 @@ tbody tr:last-child{border-bottom:none}
 tbody tr:hover td{background:var(--bg-hover)}
 td{padding:9px 10px;vertical-align:top;word-break:break-word}
 
-/* ── Mobile cards (container query — works inside Streamlit iframe) ── */
-@container(max-width:600px){
-  .wrap{overflow-y:visible;max-height:none}
-  colgroup,thead{display:none}
-  tbody tr{display:block;margin-bottom:10px;border:1px solid var(--border);
-    border-radius:8px;overflow:hidden;background:var(--bg-alt)}
-  tbody tr:last-child{border-bottom:1px solid var(--border)}
-  tbody tr:hover td{background:inherit}
-  td{display:grid;grid-template-columns:72px 1fr;gap:6px;
-    padding:7px 12px;border:none;border-bottom:1px solid var(--border);align-items:start}
-  tbody tr td:last-child{border-bottom:none}
-  td::before{content:attr(data-label);font-size:10px;font-weight:700;
-    letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding-top:2px}
-  td[data-label="Categories"],td[data-label="Keywords"]{display:none}
-}
+/* ── Mobile cards (JS class toggle on body — reliable inside Streamlit iframe) ── */
+body.mobile .wrap{overflow-y:visible;max-height:none}
+body.mobile colgroup,body.mobile thead{display:none}
+body.mobile tbody tr{display:block;margin-bottom:12px;border:1px solid var(--border);
+  border-radius:8px;overflow:hidden;background:var(--bg-alt)}
+body.mobile tbody tr:last-child{border-bottom:1px solid var(--border)}
+body.mobile tbody tr:hover td{background:inherit}
+body.mobile td{display:grid;grid-template-columns:80px 1fr;gap:6px;
+  padding:7px 12px;border:none;border-bottom:1px solid var(--border);align-items:start}
+body.mobile tbody tr td:last-child{border-bottom:none}
+body.mobile td::before{content:attr(data-label);font-size:10px;font-weight:700;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding-top:2px}
+body.mobile td[data-label="Categories"],body.mobile td[data-label="Keywords"]{display:none}
 </style>"""
             colgroup = (
                 '<colgroup>'
@@ -431,12 +429,19 @@ td{padding:9px 10px;vertical-align:top;word-break:break-word}
                     f'<td data-label="Keywords" class="muted xs">{html.escape(str(row["keywords_matched"]))}</td>'
                     f'</tr>'
                 )
+            script = (
+                '<script>(function(){'
+                'function a(){document.body.classList.toggle("mobile",window.innerWidth<640)}'
+                'a();window.addEventListener("resize",a);'
+                '})();</script>'
+            )
             return (
                 css
                 + '<div class="wrap">'
                 + f'<table>{colgroup}{thead}<tbody>'
                 + "\n".join(rows)
                 + "</tbody></table></div>"
+                + script
             )
 
         st.html(_project_table_html(display))
@@ -576,7 +581,7 @@ a{color:var(--link);text-decoration:none;font-weight:500}a:hover{color:var(--lin
 .muted{color:var(--muted)}.mono{font-variant-numeric:tabular-nums;white-space:nowrap}.sm{font-size:12px}
 
 /* ── Desktop table ── */
-.wrap{container-type:inline-size;overflow-y:auto;max-height:520px}
+.wrap{overflow-y:auto;max-height:520px}
 table{width:100%;border-collapse:collapse;table-layout:fixed}
 col.cf{width:14%}col.cg{width:14%}col.ct{width:32%}col.cs{width:80px}col.cd{width:86px}col.cdk{width:auto}
 thead th{padding:8px 10px;text-align:left;background:var(--bg-alt);border-bottom:2px solid var(--border);
@@ -586,20 +591,18 @@ tbody tr{border-bottom:1px solid var(--border)}tbody tr:last-child{border-bottom
 tbody tr:hover td{background:var(--bg-hover)}
 td{padding:9px 10px;vertical-align:top;word-break:break-word}
 
-/* ── Mobile cards ── */
-@container(max-width:600px){
-  .wrap{overflow-y:visible;max-height:none}
-  colgroup,thead{display:none}
-  tbody tr{display:block;margin-bottom:10px;border:1px solid var(--border);
-    border-radius:8px;overflow:hidden;background:var(--bg-alt)}
-  tbody tr:last-child{border-bottom:1px solid var(--border)}
-  tbody tr:hover td{background:inherit}
-  td{display:grid;grid-template-columns:72px 1fr;gap:6px;
-    padding:7px 12px;border:none;border-bottom:1px solid var(--border);align-items:start}
-  tbody tr td:last-child{border-bottom:none}
-  td::before{content:attr(data-label);font-size:10px;font-weight:700;
-    letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding-top:2px}
-}
+/* ── Mobile cards (JS class toggle on body — reliable inside Streamlit iframe) ── */
+body.mobile .wrap{overflow-y:visible;max-height:none}
+body.mobile colgroup,body.mobile thead{display:none}
+body.mobile tbody tr{display:block;margin-bottom:12px;border:1px solid var(--border);
+  border-radius:8px;overflow:hidden;background:var(--bg-alt)}
+body.mobile tbody tr:last-child{border-bottom:1px solid var(--border)}
+body.mobile tbody tr:hover td{background:inherit}
+body.mobile td{display:grid;grid-template-columns:80px 1fr;gap:6px;
+  padding:7px 12px;border:none;border-bottom:1px solid var(--border);align-items:start}
+body.mobile tbody tr td:last-child{border-bottom:none}
+body.mobile td::before{content:attr(data-label);font-size:10px;font-weight:700;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding-top:2px}
 </style>"""
                 colgroup = (
                     '<colgroup>'
@@ -627,12 +630,19 @@ td{padding:9px 10px;vertical-align:top;word-break:break-word}
                         f'<td data-label="End" class="muted mono sm">{end}</td>'
                         f'</tr>'
                     )
+                script = (
+                    '<script>(function(){'
+                    'function a(){document.body.classList.toggle("mobile",window.innerWidth<640)}'
+                    'a();window.addEventListener("resize",a);'
+                    '})();</script>'
+                )
                 return (
                     css
                     + '<div class="wrap">'
                     + f'<table>{colgroup}{thead}<tbody>'
                     + "\n".join(rows)
                     + "</tbody></table></div>"
+                    + script
                 )
 
             st.html(_rpi_table_html(rpi_display))
