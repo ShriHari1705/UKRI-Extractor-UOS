@@ -1,8 +1,11 @@
 # UKRI Early Warning System
 
-> **Give IT Services advance notice of compute-heavy grants — before researchers submit support tickets.**
+> **Give IT Services advance notice of compute-heavy grants — and give Research & Policy Intelligence teams a live view of the UKRI funding landscape.**
 
-This pipeline fetches funded projects from the [UKRI Gateway to Research API](https://gtr.ukri.org/gtr/api), filters for Innovate UK grants, and tags project abstracts by technology category (ML/AI, HPC, Data-Intensive, Cloud). IT teams can see what's coming before it hits the SLURM queue.
+This system has two audiences served by the same pipeline and dashboard:
+
+- **IT Services (Early Warning tab)** — fetches Innovate UK grants, tags abstracts by technology category (ML/AI, HPC, Data-Intensive, Cloud), and scores projects by compute demand. IT teams see what's coming before it hits the SLURM queue.
+- **RPI Growth Managers (RPI tab)** — loads all UKRI funders (EPSRC, MRC, BBSRC, AHRC, ESRC, NERC, STFC, Innovate UK, etc.) into a funding landscape view, showing trends by funder, grant category, and year to support bid strategy.
 
 ---
 
@@ -32,15 +35,26 @@ This pipeline fetches funded projects from the [UKRI Gateway to Research API](ht
 
 ### Data flow
 
+**IT Services pipeline (`run_pipeline.py`)**
+
 | Step | Tool | What happens |
 |------|------|-------------|
-| Extract | `fetcher.py` | Pages through all 173k UKRI projects, caches each page as JSON in S3 or local disk |
+| Extract | `fetcher.py` | Pages through all ~175k UKRI projects, caches each page as JSON in S3 or local disk |
 | Filter | `transformer.py` | Keeps only `leadFunder == "Innovate UK"` |
 | Tag | `transformer.py` | Matches abstract text against keyword taxonomy — long format output |
-| Load | `loader.py` | Writes CSV + incrementally flushes to Snowflake RAW every 1000 pages |
-| Transform | dbt | Staging view deduplicates; mart builds compute_score + priority |
+| Load | `loader.py` | Writes CSV + incrementally flushes to Snowflake `RAW.UKRI_PROJECTS` every 1000 pages |
+| Transform | dbt | Staging view deduplicates; mart builds compute_score + priority tier |
 | Orchestrate | Airflow | Runs weekly, pre-warms Snowflake warehouse, triggers dbt after pipeline |
 | Stream alt | Kafka | Producer publishes project events; consumer writes to Snowflake with DLQ |
+
+**RPI pipeline (`run_rpi_pipeline.py`)**
+
+| Step | Tool | What happens |
+|------|------|-------------|
+| Extract | `fetcher.py` | Reuses the same local page cache — no re-fetching |
+| Parse | `rpi_transformer.py` | Extracts metadata for **all funders**, no keyword tagging — one row per project |
+| Load | `loader.py` | Incrementally flushes to Snowflake `RAW.UKRI_ALL_PROJECTS` every 500 pages |
+| Transform | dbt | Staging view deduplicates; mart adds activity flags (currently active, started last 2 years) |
 
 ---
 
@@ -48,15 +62,18 @@ This pipeline fetches funded projects from the [UKRI Gateway to Research API](ht
 
 ```
 ukri-early-warning/
-├── run_pipeline.py              # Entry point — run this
-├── config.py                   # All settings (keywords, API, credentials)
+├── run_pipeline.py              # IT Services pipeline — Innovate UK, keyword-tagged
+├── run_rpi_pipeline.py          # RPI pipeline — all funders, wide-format metadata
+├── config.py                   # All settings (keywords, API, Snowflake table names)
+├── dashboard.py                 # Streamlit dashboard (two tabs: EWS + RPI)
 ├── docker-compose.yml          # Kafka + Zookeeper + Airflow + Postgres
 │
 ├── pipeline/
 │   ├── models.py               # Pydantic schemas (API v7 validation + HTML decode)
 │   ├── fetcher.py              # Paginated API fetch + S3/local caching
-│   ├── transformer.py          # Funder filter + keyword tagging + incremental Snowflake flush
-│   └── loader.py               # CSV + Snowflake write (SQL injection safe)
+│   ├── transformer.py          # Innovate UK filter + keyword tagging (IT Services)
+│   ├── rpi_transformer.py      # All-funder extractor, no keyword tagging (RPI)
+│   └── loader.py               # CSV + Snowflake write for both pipelines
 │
 ├── airflow/
 │   └── dags/
@@ -69,10 +86,12 @@ ukri-early-warning/
 │   │   └── keyword_taxonomy.csv
 │   └── models/
 │       ├── staging/
-│       │   └── stg_ukri_raw_projects.sql
+│       │   ├── stg_ukri_raw_projects.sql    # Innovate UK (IT Services)
+│       │   └── stg_ukri_all_projects.sql    # All funders (RPI)
 │       └── marts/
 │           ├── mart_keyword_tags.sql
-│           └── mart_early_warning_signal.sql
+│           ├── mart_early_warning_signal.sql
+│           └── mart_rpi_funding_landscape.sql
 │
 ├── kafka/
 │   ├── producer.py             # Publishes project events to Kafka topic
@@ -116,7 +135,7 @@ python run_pipeline.py --pages 5
 
 Output: `outputs/ukri_innovate_uk_tagged_YYYYMMDD_HHMM.csv`
 
-### 4. Full run with Snowflake
+### 4. Full run with Snowflake (IT Services pipeline)
 
 ```bash
 python run_pipeline.py --snowflake
@@ -137,6 +156,21 @@ python run_pipeline.py --recent --snowflake
 # Fetches projects sorted by start date descending
 # Stops when dates go below 2025-01-01 (configurable via --since)
 python run_pipeline.py --recent --snowflake --since 2024-01-01
+```
+
+### 7. RPI Growth Manager pipeline (all funders)
+
+Run this after step 4 — it reuses the local page cache so no re-fetching is needed:
+
+```bash
+python run_rpi_pipeline.py --snowflake --overwrite
+# Loads ~175k projects across all UKRI councils into UKRI_ALL_PROJECTS
+```
+
+Then build the dbt models:
+
+```bash
+dbt run --project-dir dbt --select stg_ukri_all_projects mart_rpi_funding_landscape
 ```
 
 ---
@@ -244,11 +278,13 @@ dbt test       # run data quality tests
 
 ### Models
 
-| Model | Schema | Description |
-|-------|--------|-------------|
-| `stg_ukri_raw_projects` | STAGING | Deduped, type-cast view of RAW |
-| `mart_keyword_tags` | MARTS | Long format — one row per project × keyword |
-| `mart_early_warning_signal` | MARTS | One row per project: compute_score, priority, starting_soon flag |
+| Model | Schema | Audience | Description |
+|-------|--------|----------|-------------|
+| `stg_ukri_raw_projects` | STAGING | IT Services | Deduped Innovate UK view of RAW.UKRI_PROJECTS |
+| `stg_ukri_all_projects` | STAGING | RPI | Deduped all-funder view of RAW.UKRI_ALL_PROJECTS |
+| `mart_keyword_tags` | MARTS | IT Services | Long format — one row per project × keyword |
+| `mart_early_warning_signal` | MARTS | IT Services | One row per project: compute_score, priority, starting_soon |
+| `mart_rpi_funding_landscape` | MARTS | RPI | One row per project across all funders, with activity flags |
 
 ---
 
@@ -322,17 +358,20 @@ Edit `KEYWORD_TAXONOMY` in `config.py`. Also update `dbt/seeds/keyword_taxonomy.
 
 ## FAQ
 
-**Q: Why does the pipeline fetch all 173k UKRI projects?**  
-A: UKRI API v7 has no server-side funder filter. We fetch everything and filter on `leadFunder` in Python. The S3 cache means you only pay this cost once.
+**Q: Why does the pipeline fetch all ~175k UKRI projects?**  
+A: UKRI API v7 has no server-side funder filter. We fetch everything and filter on `leadFunder` in Python. The S3/local cache means you only pay this cost once — the RPI pipeline reuses the same cache.
 
 **Q: Is it safe to interrupt a full run?**  
-A: Yes. S3 caches every fetched page. Snowflake receives incremental flushes every 1000 pages. Re-running resumes from the last uncached page automatically.
+A: Yes. S3/local cache saves every fetched page. Snowflake receives incremental flushes periodically. Re-running resumes from the last uncached page automatically.
 
 **Q: Some projects have no start date. Why?**  
-A: A known data quality gap in the UKRI API — some records have null timestamps. These appear as `NULL` in Snowflake and are handled with `NULLS LAST` in the mart ORDER BY.
+A: A known data quality gap in the UKRI API — some records have null or invalid timestamps. These appear as `NULL` in Snowflake and are handled gracefully in both pipelines.
 
 **Q: How do I add a new keyword?**  
 A: Add it to `KEYWORD_TAXONOMY` in `config.py` and to `dbt/seeds/keyword_taxonomy.csv`, then run `dbt seed && dbt run`.
+
+**Q: What's the difference between the two pipelines?**  
+A: `run_pipeline.py` targets IT Services — it filters to Innovate UK, tags abstracts by compute keyword, and scores projects by infrastructure demand. `run_rpi_pipeline.py` targets RPI Growth Managers — it loads all UKRI funders with no keyword tagging, providing a broad funding landscape view for bid strategy.
 
 ---
 
