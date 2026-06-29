@@ -355,17 +355,9 @@ upcoming ones (capacity planning needed soon).
         def _project_table_html(df: pd.DataFrame) -> str:
             css = """
 <style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
-:root {
-  --bg:#ffffff;--bg-alt:#f7f8fa;--bg-hover:#eef1f7;--border:#e2e5eb;
-  --text:#1a1d23;--muted:#5f6775;--link:#1558d6;--link-hov:#0d3fa0;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg:#0e1117;--bg-alt:#161b22;--bg-hover:#1c2333;--border:#2d3340;
-    --text:#cdd5e0;--muted:#7c8794;--link:#58a6ff;--link-hov:#79b8ff;
-  }
-}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#fff;--bg-alt:#f7f8fa;--bg-hover:#eef1f7;--border:#e2e5eb;--text:#1a1d23;--muted:#5f6775;--link:#1558d6;--link-hov:#0d3fa0}
+@media(prefers-color-scheme:dark){:root{--bg:#0e1117;--bg-alt:#161b22;--bg-hover:#1c2333;--border:#2d3340;--text:#cdd5e0;--muted:#7c8794;--link:#58a6ff;--link-hov:#79b8ff}}
 html,body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:13px;line-height:1.5}
 .wrap{overflow-x:auto;max-height:560px;overflow-y:auto}
 table{width:100%;border-collapse:collapse;table-layout:fixed}
@@ -384,6 +376,18 @@ a:hover{color:var(--link-hov);text-decoration:underline}
 .badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;letter-spacing:.02em;white-space:nowrap}
 .muted{color:var(--muted)}.mono{font-variant-numeric:tabular-nums;white-space:nowrap}
 .sm{font-size:12px}.xs{font-size:11px}
+
+@media(max-width:640px){
+  .wrap{max-height:none;overflow-y:visible}
+  colgroup,thead{display:none}
+  tbody tr{display:block;margin-bottom:12px;border:1px solid var(--border);
+    border-radius:8px;padding:6px 0;background:var(--bg-alt)}
+  tbody tr:last-child{border-bottom:1px solid var(--border)}
+  td{display:flex;gap:10px;padding:5px 12px;border:none}
+  td::before{content:attr(data-label);flex:0 0 80px;font-size:10px;font-weight:700;
+    letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding-top:1px}
+  td[data-label="Categories"],td[data-label="Keywords"]{display:none}
+}
 </style>"""
             colgroup = (
                 '<colgroup>'
@@ -410,15 +414,15 @@ a:hover{color:var(--link-hov);text-decoration:underline}
                 pri   = html.escape(str(row["priority"]))
                 rows.append(
                     f'<tr>'
-                    f'<td><span class="badge" style="background:{pc}1a;color:{pc};border:1px solid {pc}55">{pri}</span></td>'
-                    f'<td class="muted mono sm" style="text-align:center">{int(row["compute_score"])} / 4</td>'
-                    f'<td><a href="{url}" target="_blank">{title}</a></td>'
-                    f'<td class="muted sm">{html.escape(str(row["status"]))}</td>'
-                    f'<td class="muted sm">{html.escape(str(row["grant_category"]))}</td>'
-                    f'<td class="muted mono sm">{start}</td>'
-                    f'<td class="muted mono sm">{end}</td>'
-                    f'<td class="muted sm">{html.escape(str(row["categories_flagged"]))}</td>'
-                    f'<td class="muted xs">{html.escape(str(row["keywords_matched"]))}</td>'
+                    f'<td data-label="Priority"><span class="badge" style="background:{pc}1a;color:{pc};border:1px solid {pc}55">{pri}</span></td>'
+                    f'<td data-label="Score" class="muted mono sm">{int(row["compute_score"])} / 4</td>'
+                    f'<td data-label="Title"><a href="{url}" target="_blank">{title}</a></td>'
+                    f'<td data-label="Status" class="muted sm">{html.escape(str(row["status"]))}</td>'
+                    f'<td data-label="Grant" class="muted sm">{html.escape(str(row["grant_category"]))}</td>'
+                    f'<td data-label="Start" class="muted mono sm">{start}</td>'
+                    f'<td data-label="End" class="muted mono sm">{end}</td>'
+                    f'<td data-label="Categories" class="muted sm">{html.escape(str(row["categories_flagged"]))}</td>'
+                    f'<td data-label="Keywords" class="muted xs">{html.escape(str(row["keywords_matched"]))}</td>'
                     f'</tr>'
                 )
             return (
@@ -573,6 +577,17 @@ tbody tr:hover td{background:var(--bg-hover)}
 td{padding:9px 10px;vertical-align:top;word-break:break-word}
 a{color:var(--link);text-decoration:none;font-weight:500}a:hover{color:var(--link-hov);text-decoration:underline}
 .muted{color:var(--muted)}.mono{font-variant-numeric:tabular-nums;white-space:nowrap}.sm{font-size:12px}
+
+@media(max-width:640px){
+  .wrap{max-height:none;overflow-y:visible}
+  colgroup,thead{display:none}
+  tbody tr{display:block;margin-bottom:12px;border:1px solid var(--border);
+    border-radius:8px;padding:6px 0;background:var(--bg-alt)}
+  tbody tr:last-child{border-bottom:1px solid var(--border)}
+  td{display:flex;gap:10px;padding:5px 12px;border:none}
+  td::before{content:attr(data-label);flex:0 0 80px;font-size:10px;font-weight:700;
+    letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding-top:1px}
+}
 </style>"""
                 colgroup = (
                     '<colgroup>'
@@ -592,12 +607,12 @@ a{color:var(--link);text-decoration:none;font-weight:500}a:hover{color:var(--lin
                     end   = row["end_date"].strftime("%Y-%m-%d")   if pd.notna(row["end_date"])   else "—"
                     rows.append(
                         f'<tr>'
-                        f'<td class="muted sm">{html.escape(str(row["lead_funder"]))}</td>'
-                        f'<td class="muted sm">{html.escape(str(row["grant_category"]))}</td>'
-                        f'<td><a href="{html.escape(str(row["gtr_url"]))}" target="_blank">{html.escape(str(row["title"]))}</a></td>'
-                        f'<td class="muted sm">{html.escape(str(row["status"]))}</td>'
-                        f'<td class="muted mono sm">{start}</td>'
-                        f'<td class="muted mono sm">{end}</td>'
+                        f'<td data-label="Funder" class="muted sm">{html.escape(str(row["lead_funder"]))}</td>'
+                        f'<td data-label="Grant" class="muted sm">{html.escape(str(row["grant_category"]))}</td>'
+                        f'<td data-label="Title"><a href="{html.escape(str(row["gtr_url"]))}" target="_blank">{html.escape(str(row["title"]))}</a></td>'
+                        f'<td data-label="Status" class="muted sm">{html.escape(str(row["status"]))}</td>'
+                        f'<td data-label="Start" class="muted mono sm">{start}</td>'
+                        f'<td data-label="End" class="muted mono sm">{end}</td>'
                         f'</tr>'
                     )
                 return (
