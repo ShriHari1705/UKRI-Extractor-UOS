@@ -1,5 +1,5 @@
 -- stg_ukri_raw_projects.sql
--- Staging model: clean and type-cast the RAW Snowflake table.
+-- Staging model: clean and type-cast the RAW MotherDuck table.
 --
 -- What this does:
 --   1. Filters to Innovate UK projects only (leadFunder check)

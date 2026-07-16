@@ -1,8 +1,8 @@
 """
-kafka/consumer.py — Reads project events from Kafka and writes to Snowflake.
+kafka/consumer.py — Reads project events from Kafka and writes to MotherDuck.
 
 Runs as a long-lived process. Accumulates events into batches before writing
-to Snowflake to reduce connector overhead (configurable via BATCH_SIZE).
+to MotherDuck to reduce connector overhead (configurable via BATCH_SIZE).
 
 Usage:
     python kafka/consumer.py
@@ -25,7 +25,7 @@ from kafka.errors import KafkaError
 from config import KAFKA_BOOTSTRAP, KAFKA_TOPIC_RAW, KAFKA_GROUP_ID
 from pipeline.models import UKRIProjectRecord
 from pipeline.transformer import tag_project
-from pipeline.loader import load_to_snowflake
+from pipeline.loader import load_to_motherduck
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
@@ -35,12 +35,12 @@ KAFKA_TOPIC_DLQ = os.getenv("KAFKA_TOPIC_DLQ", "ukri.projects.dlq")
 
 
 def flush_batch(batch_rows: list) -> list:
-    """Write accumulated rows to Snowflake and return an empty list."""
+    """Write accumulated rows to MotherDuck and return an empty list."""
     if not batch_rows:
         return []
     df = pd.DataFrame(batch_rows)
-    log.info(f"Flushing {len(batch_rows)} rows to Snowflake…")
-    load_to_snowflake(df, overwrite=False)
+    log.info(f"Flushing {len(batch_rows)} rows to MotherDuck…")
+    load_to_motherduck(df, overwrite=False)
     return []
 
 

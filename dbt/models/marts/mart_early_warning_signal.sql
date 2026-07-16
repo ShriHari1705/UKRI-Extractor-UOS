@@ -27,10 +27,8 @@ scored AS (
         COUNT(DISTINCT KEYWORD)   AS KEYWORD_COUNT,
 
         -- Aggregated lists for human-readable reporting
-        LISTAGG(DISTINCT CATEGORY, ', ')
-            WITHIN GROUP (ORDER BY CATEGORY) AS CATEGORIES_FLAGGED,
-        LISTAGG(DISTINCT KEYWORD, ', ')
-            WITHIN GROUP (ORDER BY KEYWORD)  AS KEYWORDS_MATCHED
+        STRING_AGG(DISTINCT CATEGORY, ', ' ORDER BY CATEGORY) AS CATEGORIES_FLAGGED,
+        STRING_AGG(DISTINCT KEYWORD, ', ' ORDER BY KEYWORD)   AS KEYWORDS_MATCHED
 
     FROM tagged
     GROUP BY PROJECT_ID
@@ -64,8 +62,8 @@ SELECT
     -- Innovate UK projects rarely have future start dates; recently-started projects
     -- are equally relevant for IT Services capacity planning.
     CASE
-        WHEN START_DATE BETWEEN DATEADD('day', -365, CURRENT_DATE)
-                            AND DATEADD('day',   90, CURRENT_DATE)
+        WHEN START_DATE BETWEEN CURRENT_DATE - INTERVAL '365 days'
+                            AND CURRENT_DATE + INTERVAL '90 days'
         THEN TRUE
         ELSE FALSE
     END AS STARTING_SOON,

@@ -29,15 +29,12 @@ S3_PREFIX   = os.getenv("S3_PREFIX", "raw/ukri_pages")
 LOCAL_CACHE = Path(os.getenv("LOCAL_CACHE", "cache/ukri_pages"))
 OUTPUT_DIR  = Path(os.getenv("OUTPUT_DIR", "outputs"))
 
-# ── Snowflake ─────────────────────────────────────────────────────────────────
-SNOWFLAKE_ACCOUNT   = os.getenv("SNOWFLAKE_ACCOUNT", "")
-SNOWFLAKE_USER      = os.getenv("SNOWFLAKE_USER", "")
-SNOWFLAKE_PASSWORD  = os.getenv("SNOWFLAKE_PASSWORD", "")
-SNOWFLAKE_WAREHOUSE = os.getenv("SNOWFLAKE_WAREHOUSE", "COMPUTE_WH")
-SNOWFLAKE_DATABASE  = os.getenv("SNOWFLAKE_DATABASE", "UKRI_EWS")
-SNOWFLAKE_SCHEMA    = os.getenv("SNOWFLAKE_SCHEMA", "RAW")
-SNOWFLAKE_TABLE     = os.getenv("SNOWFLAKE_TABLE", "UKRI_PROJECTS")
-RPI_SNOWFLAKE_TABLE = os.getenv("RPI_SNOWFLAKE_TABLE", "UKRI_ALL_PROJECTS")
+# ── MotherDuck ────────────────────────────────────────────────────────────────
+MOTHERDUCK_TOKEN     = os.getenv("MOTHERDUCK_TOKEN", "")
+MOTHERDUCK_DATABASE  = os.getenv("MOTHERDUCK_DATABASE", "UKRI_EWS")
+MOTHERDUCK_SCHEMA    = os.getenv("MOTHERDUCK_SCHEMA", "RAW")
+MOTHERDUCK_TABLE     = os.getenv("MOTHERDUCK_TABLE", "UKRI_PROJECTS")
+RPI_MOTHERDUCK_TABLE = os.getenv("RPI_MOTHERDUCK_TABLE", "UKRI_ALL_PROJECTS")
 
 # ── Kafka ─────────────────────────────────────────────────────────────────────
 KAFKA_BOOTSTRAP    = os.getenv("KAFKA_BOOTSTRAP", "localhost:9092")

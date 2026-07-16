@@ -2,15 +2,15 @@
 kafka/producer.py — Publishes Innovate UK project records to a Kafka topic.
 
 Use this when running in event-driven / streaming mode instead of batch CSV.
-The consumer (consumer.py) subscribes to the same topic and writes to Snowflake.
+The consumer (consumer.py) subscribes to the same topic and writes to MotherDuck.
 
 Usage:
     python kafka/producer.py              # full run
     python kafka/producer.py --pages 5   # dev mode
 
 Architecture:
-    run_pipeline.py (batch)    →  CSV → Snowflake (one-shot)
-    kafka/producer.py (stream) →  Kafka topic → consumer.py → Snowflake (real-time)
+    run_pipeline.py (batch)    →  CSV → MotherDuck (one-shot)
+    kafka/producer.py (stream) →  Kafka topic → consumer.py → MotherDuck (real-time)
 """
 import argparse
 import json

@@ -1,7 +1,7 @@
 """
 dashboard.py — UKRI Early Warning System · Streamlit Dashboard
 
-Data source: Snowflake  UKRI_EWS.RAW_MARTS.MART_KEYWORD_TAGS
+Data source: MotherDuck  UKRI_EWS.RAW_MARTS.MART_KEYWORD_TAGS
 
 Run locally:  streamlit run dashboard.py
 Deploy:       push to GitHub → Streamlit Community Cloud → share as a link
@@ -37,50 +37,42 @@ LONG = f"{DB}.{SCH}.MART_KEYWORD_TAGS"
 PROJ = f"{DB}.{SCH}.MART_EARLY_WARNING_SIGNAL"
 RPI  = f"{DB}.{SCH}.MART_RPI_FUNDING_LANDSCAPE"
 
-# ── Snowflake connection ───────────────────────────────────────────────────────
+# ── MotherDuck connection ──────────────────────────────────────────────────────
 
-def _sf_param(key: str, env_key: str) -> str:
+def _md_token() -> str:
     try:
-        return st.secrets["snowflake"][key]
+        return st.secrets["motherduck"]["token"]
     except (KeyError, FileNotFoundError):
-        return os.environ.get(env_key, "")
+        return os.environ.get("MOTHERDUCK_TOKEN", "")
 
 
 def _is_connection_alive(conn) -> bool:
     try:
-        conn.cursor().execute("SELECT 1")
+        conn.sql("SELECT 1")
         return True
     except Exception:
         return False
 
 
-@st.cache_resource(show_spinner="Connecting to Snowflake…", validate=_is_connection_alive)
+@st.cache_resource(show_spinner="Connecting to MotherDuck…", validate=_is_connection_alive)
 def get_connection():
     try:
-        import snowflake.connector
+        import duckdb
     except ImportError:
-        st.error("Install: pip install 'snowflake-connector-python[pandas]'")
+        st.error("Install: pip install duckdb")
         st.stop()
 
-    return snowflake.connector.connect(
-        account=_sf_param("account",    "SNOWFLAKE_ACCOUNT"),
-        user=_sf_param("user",          "SNOWFLAKE_USER"),
-        password=_sf_param("password",  "SNOWFLAKE_PASSWORD"),
-        warehouse=_sf_param("warehouse","SNOWFLAKE_WAREHOUSE"),
-        database=DB,
-        schema=SCH,
-    )
+    # read_only — the dashboard only queries, the pipeline owns writes
+    return duckdb.connect(f"md:{DB}?motherduck_token={_md_token()}", read_only=True)
 
 
 def _query(sql: str) -> pd.DataFrame:
-    """Run a query, refreshing the connection once if the token has expired."""
+    """Run a query, refreshing the connection once if it has gone stale."""
     try:
-        return pd.read_sql(sql, get_connection())
-    except Exception as e:
-        if "390114" in str(e) or "Authentication token has expired" in str(e):
-            get_connection.clear()
-            return pd.read_sql(sql, get_connection())
-        raise
+        return get_connection().sql(sql).df()
+    except Exception:
+        get_connection.clear()
+        return get_connection().sql(sql).df()
 
 
 @st.cache_data(ttl=600, show_spinner="Loading keyword tags…")
@@ -131,7 +123,7 @@ proj_df = load_projects()
 # rpi_df is loaded lazily inside tab_rpi to avoid slowing the initial page load
 
 if proj_df.empty:
-    st.warning("No data returned from Snowflake. Has the pipeline run yet?")
+    st.warning("No data returned from MotherDuck. Has the pipeline run yet?")
     st.stop()
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
@@ -191,7 +183,7 @@ tab_ews, tab_rpi = st.tabs(["IT Services — Early Warning", "RPI Growth Manager
 # TAB 1 — IT Services / Early Warning (existing view)
 # ════════════════════════════════════════════════════════════════════════════════
 with tab_ews:
-    st.caption("Innovate UK projects flagged for compute / cloud / AI / data-intensive activity · Source: Snowflake")
+    st.caption("Innovate UK projects flagged for compute / cloud / AI / data-intensive activity · Source: MotherDuck")
 
     with st.expander("How scoring works", expanded=False):
         st.markdown("""
@@ -465,7 +457,7 @@ with tab_rpi:
     if rpi_df.empty:
         st.info(
             "No RPI data yet. Run the pipeline to populate it:\n\n"
-            "```\npython run_rpi_pipeline.py --snowflake --overwrite\n"
+            "```\npython run_rpi_pipeline.py --motherduck --overwrite\n"
             "dbt run --select mart_rpi_funding_landscape\n```"
         )
     else:

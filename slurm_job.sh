@@ -39,9 +39,9 @@ mkdir -p logs
 # Set MAX_PAGES env var to limit pages (useful for testing)
 if [ -n "${MAX_PAGES:-}" ]; then
     echo "DEV MODE: limiting to $MAX_PAGES pages"
-    python run_pipeline.py --pages "$MAX_PAGES" --snowflake
+    python run_pipeline.py --pages "$MAX_PAGES" --motherduck
 else
-    python run_pipeline.py --snowflake
+    python run_pipeline.py --motherduck
 fi
 
 echo "======================================"

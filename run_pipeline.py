@@ -5,16 +5,16 @@ run_pipeline.py — UKRI Early Warning System — Entry Point
 Fetches all UKRI projects from the Gateway to Research API,
 filters for Innovate UK funded projects, tags abstracts by technology
 category (ML/AI, HPC, Data-Intensive, Cloud), and saves a long-format
-CSV (and optionally loads to Snowflake).
+CSV (and optionally loads to MotherDuck).
 
 Usage
 -----
 Local / HPC interactive:
     python run_pipeline.py                              # full run, CSV output
     python run_pipeline.py --pages 5                    # dev mode: first 5 pages only
-    python run_pipeline.py --snowflake                  # also load to Snowflake
-    python run_pipeline.py --snowflake --overwrite      # truncate table first (backfill)
-    python run_pipeline.py --recent --snowflake         # recent projects (2025+) sorted by start date
+    python run_pipeline.py --motherduck                 # also load to MotherDuck
+    python run_pipeline.py --motherduck --overwrite     # truncate table first (backfill)
+    python run_pipeline.py --recent --motherduck        # recent projects (2025+) sorted by start date
     python run_pipeline.py --recent --since 2024-01-01  # extend threshold back to 2024
 
 HPC batch (SLURM):
@@ -32,7 +32,7 @@ import sys
 from config import USE_S3
 from pipeline.fetcher import fetch_all_pages, fetch_recent_pages
 from pipeline.transformer import build_long_dataframe
-from pipeline.loader import save_csv, load_to_snowflake
+from pipeline.loader import save_csv, load_to_motherduck
 
 # ── Logging ────────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -75,12 +75,12 @@ def main():
         help="Limit fetch to first N pages (dev/test mode)",
     )
     parser.add_argument(
-        "--snowflake", action="store_true",
-        help="Load output to Snowflake after saving CSV",
+        "--motherduck", action="store_true",
+        help="Load output to MotherDuck after saving CSV",
     )
     parser.add_argument(
         "--overwrite", action="store_true",
-        help="Truncate Snowflake table before loading (use for full backfill)",
+        help="Truncate MotherDuck table before loading (use for full backfill)",
     )
     parser.add_argument(
         "--recent", action="store_true",
@@ -107,7 +107,7 @@ def main():
     else:
         log.info("Storage mode: local disk cache")
 
-    # ── Extract + Transform + incremental Snowflake load ──────────────────────
+    # ── Extract + Transform + incremental MotherDuck load ──────────────────────
     if args.recent:
         from datetime import datetime
         since_dt = datetime.strptime(args.since, "%Y-%m-%d")
@@ -117,11 +117,11 @@ def main():
         pages = fetch_all_pages(max_pages=args.pages, s3_client=s3_client)
     df = build_long_dataframe(
         pages,
-        snowflake=args.snowflake,
+        motherduck=args.motherduck,
         overwrite=args.overwrite,
     )
 
-    if df.empty and not args.snowflake:
+    if df.empty and not args.motherduck:
         log.error("Pipeline produced no output. Exiting.")
         sys.exit(1)
 
@@ -130,7 +130,7 @@ def main():
         save_csv(df)
         print_summary(df)
     else:
-        log.info("All data written incrementally to Snowflake — no local DataFrame to summarise")
+        log.info("All data written incrementally to MotherDuck — no local DataFrame to summarise")
     log.info("═══ Pipeline complete ═══")
     return df
 

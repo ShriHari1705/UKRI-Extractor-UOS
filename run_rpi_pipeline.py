@@ -4,21 +4,21 @@ run_rpi_pipeline.py — UKRI RPI Growth Manager Data Pipeline
 ============================================================
 Fetches ALL UKRI projects (all funders — EPSRC, MRC, BBSRC, AHRC, ESRC,
 NERC, STFC, Innovate UK, etc.) and loads a wide-format project metadata
-table into Snowflake for the RPI Growth Manager dashboard tab.
+table into MotherDuck for the RPI Growth Manager dashboard tab.
 
 No keyword tagging. One row per project.
 
 Usage
 -----
-    python run_rpi_pipeline.py                         # CSV output only
-    python run_rpi_pipeline.py --snowflake             # load to Snowflake
-    python run_rpi_pipeline.py --snowflake --overwrite # truncate first (full reload)
-    python run_rpi_pipeline.py --pages 20              # dev mode
+    python run_rpi_pipeline.py                          # CSV output only
+    python run_rpi_pipeline.py --motherduck             # load to MotherDuck
+    python run_rpi_pipeline.py --motherduck --overwrite # truncate first (full reload)
+    python run_rpi_pipeline.py --pages 20                # dev mode
 
 Output
 ------
     outputs/ukri_all_projects_YYYYMMDD_HHMM.csv
-    Snowflake: UKRI_EWS.RAW.UKRI_ALL_PROJECTS
+    MotherDuck: UKRI_EWS.RAW.UKRI_ALL_PROJECTS
 
 Note: Reuses the local page cache from run_pipeline.py — no re-fetching needed
 if the main pipeline has already run.
@@ -69,8 +69,8 @@ def main():
     )
     parser.add_argument("--pages", type=int, default=None,
                         help="Limit to first N pages (dev mode)")
-    parser.add_argument("--snowflake", action="store_true",
-                        help="Load to Snowflake (UKRI_ALL_PROJECTS)")
+    parser.add_argument("--motherduck", action="store_true",
+                        help="Load to MotherDuck (UKRI_ALL_PROJECTS)")
     parser.add_argument("--overwrite", action="store_true",
                         help="Truncate table before loading")
     args = parser.parse_args()
@@ -83,7 +83,7 @@ def main():
         s3_client = boto3.client("s3", region_name=os.getenv("AWS_DEFAULT_REGION", "eu-west-2"))
 
     pages = fetch_all_pages(max_pages=args.pages, s3_client=s3_client)
-    df = build_all_projects_dataframe(pages, snowflake=args.snowflake, overwrite=args.overwrite)
+    df = build_all_projects_dataframe(pages, motherduck=args.motherduck, overwrite=args.overwrite)
 
     if not df.empty:
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)

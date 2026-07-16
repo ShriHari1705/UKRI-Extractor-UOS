@@ -6,19 +6,18 @@ Schedule: Every Monday at 06:00 UTC (weekly refresh).
 Task flow:
     fetch_and_tag  →  dbt_staging  →  dbt_marts  →  dbt_tests
 
-The Python pipeline handles Extract + initial Load (CSV + Snowflake RAW).
-dbt handles all transformations inside Snowflake (staging → marts).
+The Python pipeline handles Extract + initial Load (CSV + MotherDuck RAW).
+dbt handles all transformations inside MotherDuck (staging → marts).
 
 Setup:
     1. Place this file in your Airflow dags/ folder.
     2. Set the Airflow Variable UKRI_PIPELINE_DIR to the repo root path.
-    3. Ensure the Airflow worker can reach the Snowflake and UKRI API endpoints.
+    3. Ensure the Airflow worker can reach MotherDuck and the UKRI API endpoints.
 """
 from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.operators.bash import BashOperator
-from airflow.operators.python import PythonOperator
 from airflow.models import Variable
 
 # Path to the cloned repo on the Airflow worker / HPC node
@@ -38,7 +37,7 @@ with DAG(
     dag_id="ukri_early_warning_pipeline",
     description=(
         "Weekly pipeline: fetch UKRI Innovate UK projects, "
-        "tag abstracts, load to Snowflake, run dbt models."
+        "tag abstracts, load to MotherDuck, run dbt models."
     ),
     schedule_interval="0 6 * * 1",   # Every Monday 06:00 UTC
     start_date=datetime(2026, 1, 1),
@@ -47,34 +46,14 @@ with DAG(
     tags=["ukri", "research-it", "early-warning"],
 ) as dag:
 
-    # ── Stage 0: Pre-warm Snowflake warehouse ─────────────────────────────────
-    def _prewarm_snowflake():
-        import os
-        import snowflake.connector
-        conn = snowflake.connector.connect(
-            account=os.environ["SNOWFLAKE_ACCOUNT"],
-            user=os.environ["SNOWFLAKE_USER"],
-            password=os.environ["SNOWFLAKE_PASSWORD"],
-            warehouse=os.environ.get("SNOWFLAKE_WAREHOUSE", "COMPUTE_WH"),
-            database=os.environ.get("SNOWFLAKE_DATABASE", "UKRI_EWS"),
-            schema=os.environ.get("SNOWFLAKE_SCHEMA", "RAW"),
-        )
-        conn.cursor().execute("SELECT 1")
-        conn.close()
-
-    prewarm_snowflake = PythonOperator(
-        task_id="prewarm_snowflake",
-        python_callable=_prewarm_snowflake,
-        execution_timeout=timedelta(minutes=2),
-    )
-
-    # ── Stage 1: Fetch, tag, load RAW to Snowflake ────────────────────────────
+    # ── Stage 1: Fetch, tag, load RAW to MotherDuck ───────────────────────────
+    # No warehouse pre-warm needed — MotherDuck is serverless.
     fetch_and_tag = BashOperator(
         task_id="fetch_and_tag",
         bash_command=(
             f"cd {PIPELINE_DIR} && "
             "source .venv/bin/activate && "
-            "python run_pipeline.py --snowflake"
+            "python run_pipeline.py --motherduck"
         ),
         execution_timeout=timedelta(hours=6),  # full run can take time (8660 pages)
     )
@@ -106,4 +85,4 @@ with DAG(
         ),
     )
 
-    prewarm_snowflake >> fetch_and_tag >> dbt_staging >> dbt_marts >> dbt_tests
+    fetch_and_tag >> dbt_staging >> dbt_marts >> dbt_tests

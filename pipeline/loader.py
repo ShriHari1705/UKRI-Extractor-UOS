@@ -1,11 +1,11 @@
 """
-loader.py — Saves the transformed DataFrame to CSV (dev) or Snowflake (production).
+loader.py — Saves the transformed DataFrame to CSV (dev) or MotherDuck (production).
 
-Dev workflow:   python run_pipeline.py              → CSV in outputs/
-Prod workflow:  python run_pipeline.py --snowflake  → CSV + Snowflake load
+Dev workflow:   python run_pipeline.py               → CSV in outputs/
+Prod workflow:  python run_pipeline.py --motherduck  → CSV + MotherDuck load
 
-Snowflake credentials are read from environment variables (see .env.example).
-After the load, dbt handles all further transformations in Snowflake.
+MotherDuck credentials are read from environment variables (see .env.example).
+After the load, dbt handles all further transformations in MotherDuck.
 """
 import logging
 import re
@@ -16,9 +16,8 @@ import pandas as pd
 
 from config import (
     OUTPUT_DIR,
-    SNOWFLAKE_ACCOUNT, SNOWFLAKE_USER, SNOWFLAKE_PASSWORD,
-    SNOWFLAKE_WAREHOUSE, SNOWFLAKE_DATABASE, SNOWFLAKE_SCHEMA,
-    SNOWFLAKE_TABLE, RPI_SNOWFLAKE_TABLE,
+    MOTHERDUCK_TOKEN, MOTHERDUCK_DATABASE, MOTHERDUCK_SCHEMA,
+    MOTHERDUCK_TABLE, RPI_MOTHERDUCK_TABLE,
 )
 
 log = logging.getLogger(__name__)
@@ -28,7 +27,7 @@ _VALID_IDENTIFIER = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
 
 def _validate_identifier(name: str) -> None:
     if not _VALID_IDENTIFIER.match(name):
-        raise ValueError(f"Invalid Snowflake table name: {name!r}")
+        raise ValueError(f"Invalid MotherDuck table name: {name!r}")
 
 
 def save_csv(df: pd.DataFrame) -> Path:
@@ -44,9 +43,14 @@ def save_csv(df: pd.DataFrame) -> Path:
     return path
 
 
-def load_to_snowflake(df: pd.DataFrame, overwrite: bool = False) -> None:
+def _connect():
+    import duckdb
+    return duckdb.connect(f"md:{MOTHERDUCK_DATABASE}?motherduck_token={MOTHERDUCK_TOKEN}")
+
+
+def load_to_motherduck(df: pd.DataFrame, overwrite: bool = False) -> None:
     """
-    Load the long-format DataFrame into Snowflake (RAW layer).
+    Load the long-format DataFrame into MotherDuck (RAW layer).
     dbt models downstream handle staging and mart transformations.
 
     The table schema matches the DataFrame columns exactly.
@@ -58,35 +62,24 @@ def load_to_snowflake(df: pd.DataFrame, overwrite: bool = False) -> None:
                    Use this when re-running a full historical backfill.
     """
     try:
-        import snowflake.connector
-        from snowflake.connector.pandas_tools import write_pandas
+        import duckdb
     except ImportError:
-        raise ImportError(
-            "snowflake-connector-python is not installed.\n"
-            "Run: pip install 'snowflake-connector-python[pandas]'"
-        )
+        raise ImportError("duckdb is not installed.\nRun: pip install duckdb")
 
     log.info(
-        f"Connecting to Snowflake: "
-        f"{SNOWFLAKE_ACCOUNT} / {SNOWFLAKE_DATABASE}.{SNOWFLAKE_SCHEMA}.{SNOWFLAKE_TABLE}"
+        f"Connecting to MotherDuck: "
+        f"{MOTHERDUCK_DATABASE}.{MOTHERDUCK_SCHEMA}.{MOTHERDUCK_TABLE}"
     )
-    conn = snowflake.connector.connect(
-        account=SNOWFLAKE_ACCOUNT,
-        user=SNOWFLAKE_USER,
-        password=SNOWFLAKE_PASSWORD,
-        warehouse=SNOWFLAKE_WAREHOUSE,
-        database=SNOWFLAKE_DATABASE,
-        schema=SNOWFLAKE_SCHEMA,
-    )
+    con = _connect()
 
     try:
-        cur = conn.cursor()
+        _validate_identifier(MOTHERDUCK_TABLE)
 
-        _validate_identifier(SNOWFLAKE_TABLE)
+        con.execute(f"CREATE SCHEMA IF NOT EXISTS {MOTHERDUCK_SCHEMA}")
 
         # Create table if it doesn't exist (idempotent)
-        cur.execute(f"""
-            CREATE TABLE IF NOT EXISTS {SNOWFLAKE_TABLE} (
+        con.execute(f"""
+            CREATE TABLE IF NOT EXISTS {MOTHERDUCK_SCHEMA}.{MOTHERDUCK_TABLE} (
                 PROJECT_ID      VARCHAR,
                 TITLE           VARCHAR,
                 STATUS          VARCHAR,
@@ -98,63 +91,53 @@ def load_to_snowflake(df: pd.DataFrame, overwrite: bool = False) -> None:
                 KEYWORD         VARCHAR,
                 FOUND_IN        VARCHAR,
                 GTR_URL         VARCHAR,
-                INGESTED_AT     TIMESTAMP_TZ
+                INGESTED_AT     TIMESTAMPTZ
             )
         """)
 
         if overwrite:
-            cur.execute(f"TRUNCATE TABLE {SNOWFLAKE_TABLE}")
-            log.info(f"Table {SNOWFLAKE_TABLE} truncated (overwrite=True)")
+            con.execute(f"TRUNCATE TABLE {MOTHERDUCK_SCHEMA}.{MOTHERDUCK_TABLE}")
+            log.info(f"Table {MOTHERDUCK_TABLE} truncated (overwrite=True)")
 
-        # Snowflake write_pandas requires UPPERCASE column names
+        # Match the MotherDuck table's UPPERCASE column names
         df_upload = df.copy()
         df_upload.columns = df_upload.columns.str.upper()
 
-        success, num_chunks, num_rows, _ = write_pandas(
-            conn,
-            df_upload,
-            SNOWFLAKE_TABLE,
-            auto_create_table=False,
-            overwrite=False,
-        )
+        con.execute(f"""
+            INSERT INTO {MOTHERDUCK_SCHEMA}.{MOTHERDUCK_TABLE}
+            SELECT
+                PROJECT_ID, TITLE, STATUS, LEAD_FUNDER, GRANT_CATEGORY,
+                START_DATE::DATE, END_DATE::DATE, CATEGORY, KEYWORD, FOUND_IN,
+                GTR_URL, INGESTED_AT::TIMESTAMPTZ
+            FROM df_upload
+        """)
 
-        if success:
-            log.info(f"Snowflake load complete — {num_rows:,} rows in {num_chunks} chunk(s)")
-        else:
-            log.error("Snowflake write_pandas reported failure — check connector logs")
+        log.info(f"MotherDuck load complete — {len(df_upload):,} rows")
 
     finally:
-        conn.close()
+        con.close()
 
 
-def load_all_projects_to_snowflake(df: pd.DataFrame, overwrite: bool = False) -> None:
+def load_all_projects_to_motherduck(df: pd.DataFrame, overwrite: bool = False) -> None:
     """
     Load the wide-format all-funders DataFrame into UKRI_ALL_PROJECTS (RAW layer).
     Schema: one row per project — no keyword expansion.
     """
     try:
-        import snowflake.connector
-        from snowflake.connector.pandas_tools import write_pandas
+        import duckdb
     except ImportError:
-        raise ImportError("pip install 'snowflake-connector-python[pandas]'")
+        raise ImportError("duckdb is not installed.\nRun: pip install duckdb")
 
-    _validate_identifier(RPI_SNOWFLAKE_TABLE)
+    _validate_identifier(RPI_MOTHERDUCK_TABLE)
     log.info(
-        f"Connecting to Snowflake: "
-        f"{SNOWFLAKE_ACCOUNT} / {SNOWFLAKE_DATABASE}.{SNOWFLAKE_SCHEMA}.{RPI_SNOWFLAKE_TABLE}"
+        f"Connecting to MotherDuck: "
+        f"{MOTHERDUCK_DATABASE}.{MOTHERDUCK_SCHEMA}.{RPI_MOTHERDUCK_TABLE}"
     )
-    conn = snowflake.connector.connect(
-        account=SNOWFLAKE_ACCOUNT,
-        user=SNOWFLAKE_USER,
-        password=SNOWFLAKE_PASSWORD,
-        warehouse=SNOWFLAKE_WAREHOUSE,
-        database=SNOWFLAKE_DATABASE,
-        schema=SNOWFLAKE_SCHEMA,
-    )
+    con = _connect()
     try:
-        cur = conn.cursor()
-        cur.execute(f"""
-            CREATE TABLE IF NOT EXISTS {RPI_SNOWFLAKE_TABLE} (
+        con.execute(f"CREATE SCHEMA IF NOT EXISTS {MOTHERDUCK_SCHEMA}")
+        con.execute(f"""
+            CREATE TABLE IF NOT EXISTS {MOTHERDUCK_SCHEMA}.{RPI_MOTHERDUCK_TABLE} (
                 PROJECT_ID      VARCHAR,
                 TITLE           VARCHAR,
                 STATUS          VARCHAR,
@@ -164,21 +147,22 @@ def load_all_projects_to_snowflake(df: pd.DataFrame, overwrite: bool = False) ->
                 START_DATE      DATE,
                 END_DATE        DATE,
                 GTR_URL         VARCHAR,
-                INGESTED_AT     TIMESTAMP_TZ
+                INGESTED_AT     TIMESTAMPTZ
             )
         """)
         if overwrite:
-            cur.execute(f"TRUNCATE TABLE {RPI_SNOWFLAKE_TABLE}")
-            log.info(f"Table {RPI_SNOWFLAKE_TABLE} truncated (overwrite=True)")
+            con.execute(f"TRUNCATE TABLE {MOTHERDUCK_SCHEMA}.{RPI_MOTHERDUCK_TABLE}")
+            log.info(f"Table {RPI_MOTHERDUCK_TABLE} truncated (overwrite=True)")
 
         df_upload = df.copy()
         df_upload.columns = df_upload.columns.str.upper()
-        success, num_chunks, num_rows, _ = write_pandas(
-            conn, df_upload, RPI_SNOWFLAKE_TABLE, auto_create_table=False, overwrite=False,
-        )
-        if success:
-            log.info(f"RPI Snowflake load complete — {num_rows:,} rows in {num_chunks} chunk(s)")
-        else:
-            log.error("write_pandas reported failure — check connector logs")
+        con.execute(f"""
+            INSERT INTO {MOTHERDUCK_SCHEMA}.{RPI_MOTHERDUCK_TABLE}
+            SELECT
+                PROJECT_ID, TITLE, STATUS, LEAD_FUNDER, GRANT_CATEGORY, DEPARTMENT,
+                START_DATE::DATE, END_DATE::DATE, GTR_URL, INGESTED_AT::TIMESTAMPTZ
+            FROM df_upload
+        """)
+        log.info(f"RPI MotherDuck load complete — {len(df_upload):,} rows")
     finally:
-        conn.close()
+        con.close()

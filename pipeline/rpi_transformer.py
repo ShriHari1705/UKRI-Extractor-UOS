@@ -49,7 +49,7 @@ def _extract_row(project: UKRIProjectRecord) -> dict:
 
 def build_all_projects_dataframe(
     pages: Generator,
-    snowflake: bool = False,
+    motherduck: bool = False,
     overwrite: bool = False,
 ) -> pd.DataFrame:
     """
@@ -57,12 +57,12 @@ def build_all_projects_dataframe(
     DataFrame — one row per project.
 
     Args:
-        pages:     Generator of UKRIPageResponse from fetcher.
-        snowflake: If True, flush to Snowflake incrementally.
-        overwrite: Truncate UKRI_ALL_PROJECTS before first flush.
+        pages:      Generator of UKRIPageResponse from fetcher.
+        motherduck: If True, flush to MotherDuck incrementally.
+        overwrite:  Truncate UKRI_ALL_PROJECTS before first flush.
     """
-    if snowflake:
-        from pipeline.loader import load_all_projects_to_snowflake
+    if motherduck:
+        from pipeline.loader import load_all_projects_to_motherduck
 
     all_rows: list[dict] = []
     total_seen = 0
@@ -90,21 +90,21 @@ def build_all_projects_dataframe(
             f"rows buffered: {len(all_rows):>6,}"
         )
 
-        if snowflake and page.page % FLUSH_EVERY == 0 and all_rows:
+        if motherduck and page.page % FLUSH_EVERY == 0 and all_rows:
             flush_df = pd.DataFrame(all_rows)
-            load_all_projects_to_snowflake(flush_df, overwrite=(overwrite and first_flush))
+            load_all_projects_to_motherduck(flush_df, overwrite=(overwrite and first_flush))
             log.info(f"Incremental flush — {len(flush_df):,} rows at page {page.page}")
             all_rows = []
             first_flush = False
 
-    if snowflake and all_rows:
+    if motherduck and all_rows:
         flush_df = pd.DataFrame(all_rows)
-        load_all_projects_to_snowflake(flush_df, overwrite=(overwrite and first_flush))
+        load_all_projects_to_motherduck(flush_df, overwrite=(overwrite and first_flush))
         log.info(f"Final flush — {len(flush_df):,} rows")
         all_rows = []
 
     if not all_rows:
-        log.info(f"RPI transform complete — {total_seen:,} projects written to Snowflake")
+        log.info(f"RPI transform complete — {total_seen:,} projects written to MotherDuck")
         return pd.DataFrame(columns=[
             "project_id", "title", "status", "lead_funder", "grant_category",
             "department", "start_date", "end_date", "gtr_url", "ingested_at",
