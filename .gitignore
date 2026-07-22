@@ -2,7 +2,7 @@
 .env
 .streamlit/secrets.toml
 
-# Cache and outputs — large files, don't commit
+# Cache and outputs — large files
 cache/
 outputs/
 
