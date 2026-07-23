@@ -6,20 +6,16 @@ ukri_early_warning:
   outputs:
     dev:
       type: duckdb
-      path: "md:UKRI_EWS"
+      path: "md:UKRI_EWS?motherduck_token={{ env_var('MOTHERDUCK_TOKEN') }}"
       extensions:
         - motherduck
-      settings:
-        motherduck_token: "{{ env_var('MOTHERDUCK_TOKEN') }}"
       schema: RAW
       threads: 4
 
     prod:
       type: duckdb
-      path: "md:UKRI_EWS"
+      path: "md:UKRI_EWS?motherduck_token={{ env_var('MOTHERDUCK_TOKEN') }}"
       extensions:
         - motherduck
-      settings:
-        motherduck_token: "{{ env_var('MOTHERDUCK_TOKEN') }}"
       schema: RAW
       threads: 8

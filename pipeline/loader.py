@@ -17,7 +17,7 @@ import pandas as pd
 from config import (
     OUTPUT_DIR,
     MOTHERDUCK_TOKEN, MOTHERDUCK_DATABASE, MOTHERDUCK_SCHEMA,
-    MOTHERDUCK_TABLE, RPI_MOTHERDUCK_TABLE,
+    MOTHERDUCK_TABLE, RPI_MOTHERDUCK_TABLE, RPI_TAGS_MOTHERDUCK_TABLE,
 )
 
 log = logging.getLogger(__name__)
@@ -164,5 +164,58 @@ def load_all_projects_to_motherduck(df: pd.DataFrame, overwrite: bool = False) -
             FROM df_upload
         """)
         log.info(f"RPI MotherDuck load complete — {len(df_upload):,} rows")
+    finally:
+        con.close()
+
+
+def load_all_tags_to_motherduck(df: pd.DataFrame, overwrite: bool = False) -> None:
+    """
+    Load the long-format all-funders tag DataFrame into UKRI_ALL_PROJECTS_TAGS (RAW layer).
+    Same long-format schema as UKRI_PROJECTS, but not restricted to a single funder.
+    """
+    try:
+        import duckdb
+    except ImportError:
+        raise ImportError("duckdb is not installed.\nRun: pip install duckdb")
+
+    _validate_identifier(RPI_TAGS_MOTHERDUCK_TABLE)
+    log.info(
+        f"Connecting to MotherDuck: "
+        f"{MOTHERDUCK_DATABASE}.{MOTHERDUCK_SCHEMA}.{RPI_TAGS_MOTHERDUCK_TABLE}"
+    )
+    con = _connect()
+    try:
+        con.execute(f"CREATE SCHEMA IF NOT EXISTS {MOTHERDUCK_SCHEMA}")
+        con.execute(f"""
+            CREATE TABLE IF NOT EXISTS {MOTHERDUCK_SCHEMA}.{RPI_TAGS_MOTHERDUCK_TABLE} (
+                PROJECT_ID      VARCHAR,
+                TITLE           VARCHAR,
+                STATUS          VARCHAR,
+                LEAD_FUNDER     VARCHAR,
+                GRANT_CATEGORY  VARCHAR,
+                START_DATE      DATE,
+                END_DATE        DATE,
+                CATEGORY        VARCHAR,
+                KEYWORD         VARCHAR,
+                FOUND_IN        VARCHAR,
+                GTR_URL         VARCHAR,
+                INGESTED_AT     TIMESTAMPTZ
+            )
+        """)
+        if overwrite:
+            con.execute(f"TRUNCATE TABLE {MOTHERDUCK_SCHEMA}.{RPI_TAGS_MOTHERDUCK_TABLE}")
+            log.info(f"Table {RPI_TAGS_MOTHERDUCK_TABLE} truncated (overwrite=True)")
+
+        df_upload = df.copy()
+        df_upload.columns = df_upload.columns.str.upper()
+        con.execute(f"""
+            INSERT INTO {MOTHERDUCK_SCHEMA}.{RPI_TAGS_MOTHERDUCK_TABLE}
+            SELECT
+                PROJECT_ID, TITLE, STATUS, LEAD_FUNDER, GRANT_CATEGORY,
+                START_DATE::DATE, END_DATE::DATE, CATEGORY, KEYWORD, FOUND_IN,
+                GTR_URL, INGESTED_AT::TIMESTAMPTZ
+            FROM df_upload
+        """)
+        log.info(f"RPI tags MotherDuck load complete — {len(df_upload):,} rows")
     finally:
         con.close()

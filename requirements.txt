@@ -11,7 +11,9 @@ python-dotenv>=1.0.0
 boto3>=1.34.0
 
 # ── MotherDuck / DuckDB ───────────────────────────────────────────────────────
-duckdb>=1.0.0
+# Pin below the latest duckdb release — the motherduck extension build often
+# lags a new duckdb version by a few weeks, causing a 404 on connect.
+duckdb>=1.0.0,<1.5.0
 
 # ── Kafka (streaming mode) ────────────────────────────────────────────────────
 kafka-python>=2.0.2

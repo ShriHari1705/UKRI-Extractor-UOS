@@ -3,10 +3,11 @@
 run_rpi_pipeline.py — UKRI RPI Growth Manager Data Pipeline
 ============================================================
 Fetches ALL UKRI projects (all funders — EPSRC, MRC, BBSRC, AHRC, ESRC,
-NERC, STFC, Innovate UK, etc.) and loads a wide-format project metadata
-table into MotherDuck for the RPI Growth Manager dashboard tab.
-
-No keyword tagging. One row per project.
+NERC, STFC, Innovate UK, etc.) and loads:
+  - a wide-format project metadata table (one row per project) for the
+    RPI Growth Manager dashboard tab
+  - a long-format keyword tag table (one row per project × keyword match,
+    via transformer.tag_project) for category breakdowns
 
 Usage
 -----
@@ -18,7 +19,9 @@ Usage
 Output
 ------
     outputs/ukri_all_projects_YYYYMMDD_HHMM.csv
+    outputs/ukri_all_projects_tags_YYYYMMDD_HHMM.csv
     MotherDuck: UKRI_EWS.RAW.UKRI_ALL_PROJECTS
+    MotherDuck: UKRI_EWS.RAW.UKRI_ALL_PROJECTS_TAGS
 
 Note: Reuses the local page cache from run_pipeline.py — no re-fetching needed
 if the main pipeline has already run.
@@ -83,15 +86,22 @@ def main():
         s3_client = boto3.client("s3", region_name=os.getenv("AWS_DEFAULT_REGION", "eu-west-2"))
 
     pages = fetch_all_pages(max_pages=args.pages, s3_client=s3_client)
-    df = build_all_projects_dataframe(pages, motherduck=args.motherduck, overwrite=args.overwrite)
+    df, tags_df = build_all_projects_dataframe(pages, motherduck=args.motherduck, overwrite=args.overwrite)
 
-    if not df.empty:
+    if not df.empty or not tags_df.empty:
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-        ts   = datetime.now().strftime("%Y%m%d_%H%M")
-        path = OUTPUT_DIR / f"ukri_all_projects_{ts}.csv"
-        df.to_csv(path, index=False)
-        log.info(f"CSV saved → {path}")
-        print_summary(df)
+        ts = datetime.now().strftime("%Y%m%d_%H%M")
+
+        if not df.empty:
+            path = OUTPUT_DIR / f"ukri_all_projects_{ts}.csv"
+            df.to_csv(path, index=False)
+            log.info(f"CSV saved → {path}")
+            print_summary(df)
+
+        if not tags_df.empty:
+            tags_path = OUTPUT_DIR / f"ukri_all_projects_tags_{ts}.csv"
+            tags_df.to_csv(tags_path, index=False)
+            log.info(f"Tags CSV saved → {tags_path}")
 
     log.info("═══ RPI Pipeline complete ═══")
 
