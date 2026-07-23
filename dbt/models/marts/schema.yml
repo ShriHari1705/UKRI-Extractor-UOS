@@ -34,3 +34,28 @@ models:
         tests: [not_null, unique]
       - name: LEAD_FUNDER
         tests: [not_null]
+
+  - name: mart_rpi_keyword_tags
+    description: "Long-format mart — one row per project × keyword pair, across all UKRI funders. Sibling of mart_keyword_tags without the Innovate UK restriction."
+    columns:
+      - name: PROJECT_ID
+        tests: [not_null]
+      - name: KEYWORD
+        tests: [not_null]
+      - name: CATEGORY
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['ML_AI', 'HPC_Simulation', 'Data_Intensive', 'Cloud_Infrastructure']
+
+  - name: mart_category_growth_trends
+    description: "One row per category × quarter. Growth rate vs. each category's own trailing 4-quarter baseline."
+    columns:
+      - name: CATEGORY
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['ML_AI', 'HPC_Simulation', 'Data_Intensive', 'Cloud_Infrastructure']
+      - name: QUARTER
+        tests: [not_null]

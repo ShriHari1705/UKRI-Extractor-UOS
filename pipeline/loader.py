@@ -17,7 +17,7 @@ import pandas as pd
 from config import (
     OUTPUT_DIR,
     MOTHERDUCK_TOKEN, MOTHERDUCK_DATABASE, MOTHERDUCK_SCHEMA,
-    MOTHERDUCK_TABLE, RPI_MOTHERDUCK_TABLE,
+    MOTHERDUCK_TABLE, RPI_MOTHERDUCK_TABLE, RPI_TAGS_MOTHERDUCK_TABLE,
 )
 
 log = logging.getLogger(__name__)
@@ -48,38 +48,37 @@ def _connect():
     return duckdb.connect(f"md:{MOTHERDUCK_DATABASE}?motherduck_token={MOTHERDUCK_TOKEN}")
 
 
-def load_to_motherduck(df: pd.DataFrame, overwrite: bool = False) -> None:
+def _load_long_format_to_motherduck(df: pd.DataFrame, table_name: str, overwrite: bool = False) -> None:
     """
-    Load the long-format DataFrame into MotherDuck (RAW layer).
-    dbt models downstream handle staging and mart transformations.
+    Shared loader for long-format (project × keyword) tables.
 
-    The table schema matches the DataFrame columns exactly.
-    First run creates the table; subsequent runs append by default.
+    UKRI_PROJECTS (Innovate UK only) and UKRI_ALL_PROJECTS_TAGS (all funders)
+    share this exact schema and load strategy — only the target table differs.
 
     Args:
-        df:        Output of transformer.build_long_dataframe().
-        overwrite: If True, TRUNCATE the table before loading.
-                   Use this when re-running a full historical backfill.
+        df:         Long-format DataFrame (see column list in the CREATE TABLE below).
+        table_name: Target table in MOTHERDUCK_SCHEMA.
+        overwrite:  If True, TRUNCATE the table before loading.
+                    Use this when re-running a full historical backfill.
     """
     try:
         import duckdb
     except ImportError:
         raise ImportError("duckdb is not installed.\nRun: pip install duckdb")
 
+    _validate_identifier(table_name)
     log.info(
         f"Connecting to MotherDuck: "
-        f"{MOTHERDUCK_DATABASE}.{MOTHERDUCK_SCHEMA}.{MOTHERDUCK_TABLE}"
+        f"{MOTHERDUCK_DATABASE}.{MOTHERDUCK_SCHEMA}.{table_name}"
     )
     con = _connect()
 
     try:
-        _validate_identifier(MOTHERDUCK_TABLE)
-
         con.execute(f"CREATE SCHEMA IF NOT EXISTS {MOTHERDUCK_SCHEMA}")
 
         # Create table if it doesn't exist (idempotent)
         con.execute(f"""
-            CREATE TABLE IF NOT EXISTS {MOTHERDUCK_SCHEMA}.{MOTHERDUCK_TABLE} (
+            CREATE TABLE IF NOT EXISTS {MOTHERDUCK_SCHEMA}.{table_name} (
                 PROJECT_ID      VARCHAR,
                 TITLE           VARCHAR,
                 STATUS          VARCHAR,
@@ -96,15 +95,15 @@ def load_to_motherduck(df: pd.DataFrame, overwrite: bool = False) -> None:
         """)
 
         if overwrite:
-            con.execute(f"TRUNCATE TABLE {MOTHERDUCK_SCHEMA}.{MOTHERDUCK_TABLE}")
-            log.info(f"Table {MOTHERDUCK_TABLE} truncated (overwrite=True)")
+            con.execute(f"TRUNCATE TABLE {MOTHERDUCK_SCHEMA}.{table_name}")
+            log.info(f"Table {table_name} truncated (overwrite=True)")
 
         # Match the MotherDuck table's UPPERCASE column names
         df_upload = df.copy()
         df_upload.columns = df_upload.columns.str.upper()
 
         con.execute(f"""
-            INSERT INTO {MOTHERDUCK_SCHEMA}.{MOTHERDUCK_TABLE}
+            INSERT INTO {MOTHERDUCK_SCHEMA}.{table_name}
             SELECT
                 PROJECT_ID, TITLE, STATUS, LEAD_FUNDER, GRANT_CATEGORY,
                 START_DATE::DATE, END_DATE::DATE, CATEGORY, KEYWORD, FOUND_IN,
@@ -112,10 +111,23 @@ def load_to_motherduck(df: pd.DataFrame, overwrite: bool = False) -> None:
             FROM df_upload
         """)
 
-        log.info(f"MotherDuck load complete — {len(df_upload):,} rows")
+        log.info(f"MotherDuck load complete — {len(df_upload):,} rows into {table_name}")
 
     finally:
         con.close()
+
+
+def load_to_motherduck(df: pd.DataFrame, overwrite: bool = False) -> None:
+    """
+    Load the long-format DataFrame into MotherDuck (RAW layer), Innovate UK only.
+    dbt models downstream handle staging and mart transformations.
+
+    Args:
+        df:        Output of transformer.build_long_dataframe().
+        overwrite: If True, TRUNCATE the table before loading.
+                   Use this when re-running a full historical backfill.
+    """
+    _load_long_format_to_motherduck(df, MOTHERDUCK_TABLE, overwrite=overwrite)
 
 
 def load_all_projects_to_motherduck(df: pd.DataFrame, overwrite: bool = False) -> None:
@@ -166,3 +178,11 @@ def load_all_projects_to_motherduck(df: pd.DataFrame, overwrite: bool = False) -
         log.info(f"RPI MotherDuck load complete — {len(df_upload):,} rows")
     finally:
         con.close()
+
+
+def load_all_tags_to_motherduck(df: pd.DataFrame, overwrite: bool = False) -> None:
+    """
+    Load the long-format all-funders tag DataFrame into UKRI_ALL_PROJECTS_TAGS (RAW layer).
+    Same long-format schema as UKRI_PROJECTS, but not restricted to a single funder.
+    """
+    _load_long_format_to_motherduck(df, RPI_TAGS_MOTHERDUCK_TABLE, overwrite=overwrite)
