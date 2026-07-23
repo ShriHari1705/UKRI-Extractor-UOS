@@ -141,7 +141,10 @@ def build_all_projects_dataframe(
         log.info("Final flush complete")
 
     if not all_rows:
-        log.info(f"RPI transform complete — {total_seen:,} projects written to MotherDuck")
+        if motherduck:
+            log.info(f"RPI transform complete — {total_seen:,} projects written to MotherDuck")
+        else:
+            log.info(f"RPI transform complete — {total_seen:,} projects seen, no rows produced")
         projects_df = pd.DataFrame(columns=PROJECTS_COLUMNS)
     else:
         projects_df = pd.DataFrame(all_rows)
